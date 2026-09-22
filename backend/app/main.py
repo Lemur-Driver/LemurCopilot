@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import client
+from app.routers import students
+
 
 app = FastAPI()
 
@@ -13,6 +15,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(students.router)
+
 
 @app.get("/")
 def root():
@@ -22,10 +26,3 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-@app.get("/mongo-test")
-async def mongo_test():
-    await client.admin.command("ping")
-
-    return {"mongodb": "connected"}
