@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.database import client
+
 app = FastAPI()
 
 app.add_middleware(
@@ -20,3 +22,10 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/mongo-test")
+async def mongo_test():
+    await client.admin.command("ping")
+
+    return {"mongodb": "connected"}
