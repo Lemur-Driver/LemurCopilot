@@ -1,10 +1,29 @@
 import os
-
 import httpx
+
+from google import genai
+
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")
+
 OLLAMA_URL = os.environ["OLLAMA_URL"]
 OLLAMA_MODEL = os.environ["OLLAMA_MODEL"]
 
-async def generate_text(prompt: str) -> str:
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
+GEMINI_MODEL = os.environ["GEMINI_MODEL"]
+
+gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+
+
+async def generate_with_gemini(prompt: str) -> str:
+    response = gemini_client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=prompt,
+    )
+
+    return response.text
+
+
+async def generate_with_ollama(prompt: str) -> str:
     payload = {
         "model": OLLAMA_MODEL,
         "messages": [
@@ -28,3 +47,12 @@ async def generate_text(prompt: str) -> str:
     data = response.json()
 
     return data["message"]["content"]
+
+
+async def generate_text(prompt: str) -> str:
+    if LLM_PROVIDER == "ollama":
+        return await generate_with_ollama(prompt)
+    elif LLM_PROVIDER == "gemini":
+        return await generate_with_gemini(prompt)
+
+    raise ValueError(f"Proveedor LLM no soportado: {LLM_PROVIDER}")
