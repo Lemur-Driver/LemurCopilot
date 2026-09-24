@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import client
-from app.routers import students
-
+from app.routes import students
+from app.routes.rag import router as rag_router
 
 app = FastAPI()
 
@@ -16,7 +16,7 @@ app.add_middleware(
 )
 
 app.include_router(students.router)
-
+app.include_router(rag_router)
 
 @app.get("/")
 def root():

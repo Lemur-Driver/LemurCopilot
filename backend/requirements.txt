@@ -3,3 +3,5 @@ uvicorn[standard]
 pymongo
 httpx
 google-genai
+pymupdf
+sentence-transformers
