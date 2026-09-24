@@ -1,8 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.services.rag_service import search_manual
-
+from app.services.rag_service import search_manual, ask_manual
 
 router = APIRouter(
     prefix="/rag",
@@ -21,3 +20,9 @@ async def search(request: SearchRequest):
     return {
         "results": results
     }
+    
+@router.post("/ask")
+async def ask(request: SearchRequest):
+    result = await ask_manual(request.query)
+
+    return result
