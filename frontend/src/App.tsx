@@ -1,68 +1,27 @@
-import { useState } from "react";
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Home from './pages/Home'
+import Lesson from './pages/Lesson'
 
 function App() {
-  const [prompt, setPrompt] = useState("");
-  const [response, setResponse] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const sendPrompt = async () => {
-    if (!prompt.trim()) return;
-
-    setLoading(true);
-    setResponse("");
-
-    try {
-      const res = await fetch("http://localhost:8000/students/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: prompt,
-        }),
-      });
-
-      const data = await res.json();
-
-      setResponse(data.response);
-    } catch (error) {
-      console.error(error);
-      setResponse("Error conectando con el backend.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div style={{ maxWidth: "800px", margin: "40px auto", padding: "20px" }}>
-      <h1>Adaptive Driving Tutor</h1>
+    <BrowserRouter>
 
-      <textarea
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Escribe un prompt..."
-        rows={5}
-        style={{ width: "100%", marginBottom: "10px" }}
-      />
+      <Routes>
 
-      <button onClick={sendPrompt} disabled={loading}>
-        {loading ? "Generando..." : "Enviar"}
-      </button>
+        <Route
+          path="/"
+          element={<Home />}
+        />
 
-      <h2>Respuesta</h2>
+        <Route
+          path="/lesson/:lessonId"
+          element={<Lesson />}
+        />
 
-      <pre
-        style={{
-          whiteSpace: "pre-wrap",
-          background: "#f4f4f4",
-          padding: "15px",
-          minHeight: "100px",
-        }}
-      >
-        {response}
-      </pre>
-    </div>
-  );
+      </Routes>
+
+    </BrowserRouter>
+  )
 }
 
-export default App;
+export default App
