@@ -420,7 +420,6 @@
 
 .lemur-message {
   display: flex;
-
   justify-content: center;
   align-items: center;
 
@@ -431,33 +430,83 @@
   font-weight: 700;
 }
 
+
+/* Pista por donde camina */
 .lemur-track {
-  height: 65px;
-
-  margin-top: 10px;
-
   position: relative;
+
+  width: 100%;
+  height: 150px;
 
   overflow: hidden;
 }
 
-.lemur {
+
+/* Este elemento mueve al lemur de izquierda a derecha */
+.lemur-walker {
   position: absolute;
 
-  left: -50px;
+  left: 0;
+  bottom: 0;
 
-  font-size: 40px;
-
-  animation: walk 4s linear infinite;
+  animation: lemur-move 5s linear infinite;
 }
 
-@keyframes walk {
+
+/* Este elemento anima las patas */
+.lemur-sprite {
+  /*
+    Cada frame original:
+    256 x 682
+
+    Lo mostramos a escala 0.22:
+    256 * 0.22 = 56.32
+    682 * 0.22 = 150.04
+  */
+
+  width: 56.32px;
+  height: 150px;
+
+  background-image: url('./assets/loadIcon.png');
+
+  background-repeat: no-repeat;
+
+  /*
+    Sprite completo:
+    2048 x 682
+
+    escalado a altura 150:
+    2048 * (150 / 682) ≈ 450.44
+  */
+  background-size: 450.44px 150px;
+
+  animation:
+    lemur-walk-cycle 0.8s steps(8) infinite;
+}
+
+
+/* 8 frames */
+@keyframes lemur-walk-cycle {
+
   from {
-    left: -50px;
+    background-position: 0 0;
   }
 
   to {
-    left: calc(100% + 50px);
+    background-position: -450.44px 0;
+  }
+
+}
+
+
+/* Movimiento por la pista */
+@keyframes lemur-move {
+  from {
+    left: -70px;
+  }
+
+  to {
+    left: 100%;
   }
 }
 
