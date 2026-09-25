@@ -4,6 +4,7 @@ frontend/dist/
 
 # Python
 backend/app/__pycache__/
+backend/app/__pycache__/main.cpython-312.pyc
 backend/**/*.pyc
 backend/app/.venv/
 backend/app/data/
