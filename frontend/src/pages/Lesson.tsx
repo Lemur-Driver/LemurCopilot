@@ -1,4 +1,9 @@
 import {
+  useEffect,
+  useState,
+} from 'react'
+
+import {
   useNavigate,
   useParams,
 } from 'react-router-dom'
@@ -8,59 +13,69 @@ import Quiz, {
 } from '../components/Quiz'
 
 import LemurLoader from '../components/LemurLoader'
-
 import { course } from '../data/course'
 
 
-const mockQuestions: QuizQuestion[] = [
-  {
-    question:
-      '¿Cuál de los siguientes factores tiene una incidencia importante en la ocurrencia de siniestros de tránsito?',
-    options: [
-      'La imprudencia de quien conduce',
-      'El color del vehículo',
-      'La marca del automóvil',
-      'La cantidad de pasajeros',
-    ],
-    correctAnswer: 0,
-  },
+// ============================================================
+// TYPES
+// ============================================================
 
-  {
-    question:
-      '¿Cuál es uno de los objetivos del enfoque de Sistema Seguro?',
-    options: [
-      'Eliminar completamente la conducción humana',
-      'Evitar que los errores humanos tengan consecuencias graves',
-      'Aumentar la velocidad promedio',
-      'Reducir el número de vehículos nuevos',
-    ],
-    correctAnswer: 1,
-  },
+interface GeneratedSection {
+  title: string
+  content: string
+  example?: string
+}
 
-  {
-    question:
-      '¿Qué reconoce el enfoque de Sistema Seguro respecto a las personas?',
-    options: [
-      'Que nunca cometen errores',
-      'Que solamente los conductores experimentados cometen errores',
-      'Que los seres humanos pueden cometer errores',
-      'Que los errores no influyen en los siniestros',
-    ],
-    correctAnswer: 2,
-  },
-]
+interface GeneratedLesson {
+  title: string
+  introduction: string
+  sections: GeneratedSection[]
+  key_points: string[]
+}
 
+interface LessonSource {
+  page: number
+  title: string
+  source: string
+}
+
+interface GenerateLessonResponse {
+  topic: string
+
+  lesson: GeneratedLesson
+
+  quiz: {
+    questions: QuizQuestion[]
+  }
+
+  sources: LessonSource[]
+}
+
+
+// ============================================================
+// API
+// ============================================================
+
+const API_URL =
+  import.meta.env.VITE_API_URL ??
+  'http://localhost:8000'
+
+
+// ============================================================
+// COMPONENT
+// ============================================================
 
 function Lesson() {
+  const { lessonId } = useParams()
 
-  const { lessonId } =
-    useParams()
-
-  const navigate =
-    useNavigate()
+  const navigate = useNavigate()
 
 
-  const lesson = course
+  // ----------------------------------------------------------
+  // Información estática de course.ts
+  // ----------------------------------------------------------
+
+  const courseLesson = course
     .flatMap(
       (unit) => unit.lessons
     )
@@ -70,21 +85,171 @@ function Lesson() {
     )
 
 
-  if (!lesson) {
+  // ----------------------------------------------------------
+  // State
+  // ----------------------------------------------------------
 
+  const [
+    generatedContent,
+    setGeneratedContent,
+  ] = useState<GenerateLessonResponse | null>(
+    null
+  )
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true)
+
+  const [
+    error,
+    setError,
+  ] = useState<string | null>(
+    null
+  )
+
+  const [
+    showQuiz,
+    setShowQuiz,
+  ] = useState(false)
+
+
+  // ----------------------------------------------------------
+  // Cargar / generar lección
+  // ----------------------------------------------------------
+
+  useEffect(() => {
+    if (!lessonId) {
+      return
+    }
+
+
+    const controller =
+      new AbortController()
+
+    let active = true
+
+
+    const loadLesson = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        setGeneratedContent(null)
+        setShowQuiz(false)
+
+
+        const response = await fetch(
+          `${API_URL}/lessons/generate/${encodeURIComponent(
+            lessonId
+          )}`,
+          {
+            method: 'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
+
+            signal:
+              controller.signal,
+          }
+        )
+
+
+        if (!response.ok) {
+          const errorData =
+            await response
+              .json()
+              .catch(() => null)
+
+          throw new Error(
+            errorData?.detail ??
+              `Error ${response.status}`
+          )
+        }
+
+
+        const data:
+          GenerateLessonResponse =
+          await response.json()
+
+
+        if (!active) {
+          return
+        }
+
+
+        setGeneratedContent(
+          data
+        )
+
+      } catch (error) {
+
+        if (
+          error instanceof DOMException &&
+          error.name === 'AbortError'
+        ) {
+          return
+        }
+
+
+        if (!active) {
+          return
+        }
+
+
+        console.error(
+          'Error cargando lección:',
+          error
+        )
+
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'No se pudo generar la lección.'
+        )
+
+      } finally {
+
+        if (active) {
+          setLoading(false)
+        }
+
+      }
+    }
+
+
+    loadLesson()
+
+
+    return () => {
+      active = false
+
+      controller.abort()
+    }
+
+  }, [lessonId])
+
+
+  // ==========================================================
+  // LECCIÓN NO ENCONTRADA
+  // ==========================================================
+
+  if (!courseLesson) {
     return (
       <main className="not-found">
 
         <div className="not-found-icon">
-          🐒
+          🚧
         </div>
 
         <h1>
-          No encontré esta clase
+          Clase no encontrada
         </h1>
 
         <p>
-          Volvamos al camino.
+          Esta clase todavía no está disponible.
         </p>
 
         <button
@@ -101,6 +266,232 @@ function Lesson() {
   }
 
 
+  // ==========================================================
+  // LOADING
+  // ==========================================================
+
+  if (loading) {
+    return (
+      <main className="lesson-page">
+
+        <nav className="lesson-nav">
+
+          <button
+            className="back-button"
+            onClick={() =>
+              navigate('/')
+            }
+            aria-label="Volver al camino"
+          >
+            ←
+          </button>
+
+
+          <div className="lesson-nav-info">
+
+            <span>
+              {courseLesson.code}
+            </span>
+
+            <strong>
+              Preparando tu clase
+            </strong>
+
+          </div>
+
+        </nav>
+
+
+        <section className="lesson-loading">
+
+          <LemurLoader />
+
+          <h2>
+            Preparando tu clase...
+          </h2>
+
+          <p>
+            El lemur está recorriendo el manual
+            y preparando una lección para ti.
+          </p>
+
+        </section>
+
+      </main>
+    )
+  }
+
+
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
+  if (error) {
+    return (
+      <main className="lesson-page">
+
+        <nav className="lesson-nav">
+
+          <button
+            className="back-button"
+            onClick={() =>
+              navigate('/')
+            }
+            aria-label="Volver al camino"
+          >
+            ←
+          </button>
+
+
+          <div className="lesson-nav-info">
+
+            <span>
+              {courseLesson.code}
+            </span>
+
+            <strong>
+              Volver al camino
+            </strong>
+
+          </div>
+
+        </nav>
+
+
+        <section className="lesson-error">
+
+          <h2>
+            No pudimos generar la clase
+          </h2>
+
+          <p>
+            {error}
+          </p>
+
+          <button
+            className="next-button"
+            onClick={() =>
+              window.location.reload()
+            }
+          >
+            Intentar nuevamente
+          </button>
+
+        </section>
+
+      </main>
+    )
+  }
+
+
+  // ==========================================================
+  // PROTECCIÓN
+  // ==========================================================
+
+  if (!generatedContent) {
+    return (
+      <main className="lesson-page">
+
+        <section className="lesson-error">
+
+          <h2>
+            No encontramos el contenido
+          </h2>
+
+          <p>
+            La clase terminó de cargar,
+            pero no recibimos contenido.
+          </p>
+
+          <button
+            className="next-button"
+            onClick={() =>
+              window.location.reload()
+            }
+          >
+            Intentar nuevamente
+          </button>
+
+        </section>
+
+      </main>
+    )
+  }
+
+
+  // ==========================================================
+  // QUIZ
+  // ==========================================================
+
+  if (showQuiz) {
+    return (
+      <main className="lesson-page">
+
+        <nav className="lesson-nav">
+
+          <button
+            className="back-button"
+            onClick={() =>
+              setShowQuiz(false)
+            }
+            aria-label="Volver a la clase"
+          >
+            ←
+          </button>
+
+
+          <div className="lesson-nav-info">
+
+            <span>
+              {courseLesson.code}
+            </span>
+
+            <strong>
+              Volver a la clase
+            </strong>
+
+          </div>
+
+        </nav>
+
+
+        <header className="lesson-header">
+
+          <div className="lesson-header-label">
+            QUIZ
+          </div>
+
+
+          <h1>
+            {courseLesson.title}
+          </h1>
+
+
+          <p>
+            Pon a prueba lo que acabas
+            de aprender.
+          </p>
+
+        </header>
+
+
+        <Quiz
+          questions={
+            generatedContent
+              .quiz
+              .questions
+          }
+        />
+
+      </main>
+    )
+  }
+
+
+  // ==========================================================
+  // LECCIÓN
+  // ==========================================================
+
   return (
     <main className="lesson-page">
 
@@ -111,6 +502,7 @@ function Lesson() {
           onClick={() =>
             navigate('/')
           }
+          aria-label="Volver al camino"
         >
           ←
         </button>
@@ -119,121 +511,212 @@ function Lesson() {
         <div className="lesson-nav-info">
 
           <span>
-            {lesson.code}
+            {courseLesson.code}
           </span>
 
           <strong>
-            {lesson.title}
+            Volver al camino
           </strong>
 
-        </div>
-
-
-        <div className="lesson-nav-xp">
-          ⭐ +30 XP
         </div>
 
       </nav>
 
 
+      {/* ================================================== */}
+      {/* HEADER                                             */}
+      {/* ================================================== */}
+
       <header className="lesson-header">
 
-        <span className="lesson-header-label">
-          📖 LECCIÓN
-        </span>
+        <div className="lesson-header-label">
+          {courseLesson.code}
+        </div>
 
 
         <h1>
-          {lesson.title}
+          {courseLesson.title}
         </h1>
 
 
         <p>
-          {lesson.description}
+          {courseLesson.description}
         </p>
-
-
-        <div className="lesson-details">
-
-          <span>
-            ⏱ 5–10 min
-          </span>
-
-          <span>
-            🎯 3 preguntas
-          </span>
-
-          <span>
-            🇨🇱 Clase B
-          </span>
-
-        </div>
 
       </header>
 
 
+      {/* ================================================== */}
+      {/* CONTENIDO GENERADO                                 */}
+      {/* ================================================== */}
+
       <section className="lesson-content">
 
-        <span className="content-label">
-          Lo importante
-        </span>
+        <div className="content-label">
+          MINI CLASE
+        </div>
+
 
         <h2>
-          Aprende lo esencial
+          {
+            generatedContent
+              .lesson
+              .title
+          }
         </h2>
 
 
-        <p>
-          En esta clase aprenderás
-          conceptos fundamentales
-          relacionados con los
-          siniestros de tránsito
-          en Chile.
+        <p className="lesson-introduction">
+          {
+            generatedContent
+              .lesson
+              .introduction
+          }
         </p>
 
 
-        <div className="tip-card">
+        {/* ================================================ */}
+        {/* SECCIONES                                        */}
+        {/* ================================================ */}
 
-          <div className="tip-icon">
-            💡
-          </div>
+        <div className="lesson-sections">
+
+          {generatedContent
+            .lesson
+            .sections
+            .map(
+              (
+                section,
+                index
+              ) => (
+                <article
+                  className="lesson-section"
+                  key={index}
+                >
+
+                  <h3>
+                    {section.title}
+                  </h3>
 
 
-          <div>
+                  <p>
+                    {section.content}
+                  </p>
 
-            <strong>
-              Consejo de Lemur
-            </strong>
 
-            <p>
-              No intentes memorizar.
-              Primero comprende la idea
-              y luego ponla en práctica.
-            </p>
+                  {section.example && (
+                    <div className="lesson-example">
 
-          </div>
+                      <strong>
+                        💡 Ejemplo
+                      </strong>
+
+                      <p>
+                        {section.example}
+                      </p>
+
+                    </div>
+                  )}
+
+                </article>
+              )
+            )}
 
         </div>
 
 
-        <p>
-          Este contenido será generado
-          dinámicamente utilizando
-          el manual oficial y el sistema RAG.
-        </p>
+        {/* ================================================ */}
+        {/* PUNTOS CLAVE                                     */}
+        {/* ================================================ */}
+
+        {generatedContent
+          .lesson
+          .key_points
+          .length > 0 && (
+          <div className="lesson-key-points">
+
+            <h3>
+              Recuerda
+            </h3>
+
+
+            <ul>
+
+              {generatedContent
+                .lesson
+                .key_points
+                .map(
+                  (
+                    point,
+                    index
+                  ) => (
+                    <li key={index}>
+                      {point}
+                    </li>
+                  )
+                )}
+
+            </ul>
+
+          </div>
+        )}
+
+
+        {/* ================================================ */}
+        {/* FUENTES                                          */}
+        {/* ================================================ */}
+
+        {generatedContent
+          .sources
+          .length > 0 && (
+          <div className="lesson-sources">
+
+            <small>
+
+              📚 Basado en el Libro para la
+              Conducción en Chile · páginas{' '}
+
+              {generatedContent
+                .sources
+                .map(
+                  (source) =>
+                    source.page
+                )
+                .join(', ')}
+
+            </small>
+
+          </div>
+        )}
+
+
+        {/* ================================================ */}
+        {/* IR AL QUIZ                                       */}
+        {/* ================================================ */}
+
+        <div className="lesson-actions">
+
+          <button
+            className="start-quiz-button"
+            onClick={() => {
+              window.scrollTo({
+                top: 0,
+                behavior: 'smooth',
+              })
+
+              setShowQuiz(true)
+            }}
+          >
+            Comenzar quiz →
+          </button>
+
+        </div>
 
       </section>
-
-
-      <LemurLoader />
-
-
-      <Quiz
-        questions={mockQuestions}
-      />
 
     </main>
   )
 }
+
 
 export default Lesson

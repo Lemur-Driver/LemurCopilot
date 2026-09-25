@@ -36,4 +36,36 @@ export const course: Unit[] = [
       },
     ],
   },
+  {
+  id: 'unit-2',
+  code: 'Unidad 2',
+  title: 'El automóvil y las leyes físicas',
+
+  lessons: [
+    {
+      id: 'C2.1',
+      code: 'C2.1',
+      title: 'Funcionamiento del automóvil',
+      description:
+        'Conoce los principales sistemas del vehículo y cómo su funcionamiento influye en una conducción segura.',
+    },
+
+    {
+      id: 'C2.2',
+      code: 'C2.2',
+      title: 'La energía y las leyes físicas',
+      description:
+        'Comprende cómo la velocidad, la energía, las curvas y las distancias de detención afectan la conducción.',
+    },
+
+    {
+      id: 'C2.3',
+      code: 'C2.3',
+      title: 'Elementos de seguridad',
+      description:
+        'Aprende a distinguir los elementos de seguridad activa y pasiva y su función en el vehículo.',
+    },
+  ],
+},
+
 ]

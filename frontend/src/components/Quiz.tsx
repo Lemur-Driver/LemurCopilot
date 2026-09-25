@@ -4,6 +4,7 @@ export interface QuizQuestion {
   question: string
   options: string[]
   correctAnswer: number
+  explanation?: string
 }
 
 interface QuizProps {
@@ -185,54 +186,32 @@ function Quiz({
 
 
       {selectedAnswer !== null && (
+        <div className="quiz-feedback">
 
-        <div
-          className={
-            isCorrect
-              ? 'quiz-feedback correct-feedback'
-              : 'quiz-feedback wrong-feedback'
-          }
-        >
-
-          <div className="feedback-icon">
+          <p>
             {isCorrect
-              ? '🎉'
-              : '💡'}
-          </div>
+              ? '🎉 ¡Correcto!'
+              : '💡 No exactamente.'}
+          </p>
 
 
-          <div className="feedback-text">
-
-            <strong>
-              {isCorrect
-                ? '¡Muy bien!'
-                : 'Casi lo tienes'}
-            </strong>
-
-            <p>
-              {isCorrect
-                ? 'Esa es la respuesta correcta.'
-                : 'La respuesta correcta está marcada en verde.'}
+          {question.explanation && (
+            <p className="quiz-explanation">
+              {question.explanation}
             </p>
+          )}
 
-          </div>
 
-
-          {currentQuestion <
-            questions.length - 1 && (
-
+          {currentQuestion < questions.length - 1 && (
             <button
               className="next-button"
               onClick={nextQuestion}
             >
-              Continuar
-              <span>→</span>
+              Siguiente pregunta →
             </button>
-
           )}
 
         </div>
-
       )}
 
     </section>

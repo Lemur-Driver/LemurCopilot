@@ -5,6 +5,38 @@ Herramienta complementaria de preparación para el examen teórico y aprendizaje
 
 El sistema construye un modelo del conocimiento del estudiante y utiliza un agente para adaptar dinámicamente la enseñanza, ejercicios y evaluaciones, fundamentándose en material oficial chileno.
 
+## Stack
+
+- React + TypeScript + Vite
+- FastAPI
+- MongoDB Atlas
+- Sentence Transformers
+- Ollama / Gemini
+- Docker
+
+## Flujo principal
+
+Usuario selecciona una clase
+→ React llama FastAPI
+→ Backend recupera chunks desde MongoDB
+→ LLM genera lección
+→ LLM genera quiz
+→ React renderiza ambos.
+
+## Ejecutar
+
+docker compose up --build
+
+Frontend:
+http://localhost:5173
+
+Backend:
+http://localhost:8000
+
+Swagger:
+http://localhost:8000/docs
+
+
 ## 📄 Licencia y Propiedad Intelectual
 
 Este proyecto ha sido desarrollado de manera conjunta por **Brendan Rubilar Vivanco** y **Tomás Cid Muñoz**. 

@@ -1859,3 +1859,158 @@
   }
 
 }
+
+/* =========================================================
+   GENERATED LESSON
+   ========================================================= */
+
+.lesson-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+
+  max-width: 760px;
+  margin: 40px auto;
+  padding: 32px;
+
+  text-align: center;
+}
+
+
+.lesson-error {
+  max-width: 760px;
+
+  margin: 40px auto;
+  padding: 28px;
+
+  background: white;
+
+  border: 2px solid #E9685D;
+  border-radius: 20px;
+
+  text-align: center;
+}
+
+
+.lesson-introduction {
+  font-size: 1.05rem;
+  line-height: 1.7;
+
+  margin-bottom: 32px;
+}
+
+
+.lesson-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+
+.lesson-section {
+  padding: 22px;
+
+  background: #F7F7F2;
+
+  border-radius: 18px;
+}
+
+
+.lesson-section h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+
+  color: #2F6B4F;
+}
+
+
+.lesson-section p {
+  line-height: 1.65;
+}
+
+
+.lesson-example {
+  margin-top: 16px;
+  padding: 16px;
+
+  background: white;
+
+  border-left: 4px solid #F5C84C;
+  border-radius: 12px;
+}
+
+
+.lesson-example p {
+  margin-bottom: 0;
+}
+
+
+.lesson-key-points {
+  margin-top: 30px;
+  padding: 22px;
+
+  background: #ffffff;
+
+  border: 2px solid #58CC55;
+  border-radius: 18px;
+}
+
+
+.lesson-key-points h3 {
+  margin-top: 0;
+
+  color: #2F6B4F;
+}
+
+
+.lesson-key-points li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+
+.lesson-sources {
+  margin-top: 24px;
+
+  color: #667067;
+}
+
+
+.quiz-explanation {
+  line-height: 1.6;
+
+  margin-top: 10px;
+}
+
+.lesson-actions {
+  display: flex;
+  justify-content: flex-end;
+
+  margin-top: 32px;
+}
+
+.start-quiz-button {
+  padding: 14px 22px;
+
+  border: none;
+  border-radius: 14px;
+
+  background: #58CC55;
+
+  font-size: 1rem;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  box-shadow: 0 5px 0 #3fa63d;
+}
+
+.start-quiz-button:hover {
+  transform: translateY(-1px);
+}
+
+.start-quiz-button:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #3fa63d;
+}
