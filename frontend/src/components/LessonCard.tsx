@@ -6,29 +6,71 @@ interface LessonCardProps {
   number: number
 }
 
-function LessonCard({ lesson, number }: LessonCardProps) {
+function LessonCard({
+  lesson,
+  number,
+}: LessonCardProps) {
+
   const navigate = useNavigate()
 
   return (
     <button
       className="lesson-card"
-      onClick={() => navigate(`/lesson/${lesson.id}`)}
+      onClick={() =>
+        navigate(
+          `/lesson/${lesson.id}`
+        )
+      }
     >
-      <div className="lesson-number">
-        {number}
+
+      <div className="lesson-node">
+
+        <span className="lesson-node-number">
+          {number}
+        </span>
+
       </div>
+
 
       <div className="lesson-info">
-        <span className="lesson-code">{lesson.code}</span>
 
-        <h3>{lesson.title}</h3>
+        <div className="lesson-meta">
 
-        <p>{lesson.description}</p>
+          <span className="lesson-code">
+            {lesson.code}
+          </span>
+
+          <span className="lesson-duration">
+            ⏱ 5–10 min
+          </span>
+
+        </div>
+
+
+        <h3>
+          {lesson.title}
+        </h3>
+
+
+        <p>
+          {lesson.description}
+        </p>
+
       </div>
 
-      <div className="lesson-arrow">
-        →
+
+      <div className="lesson-action">
+
+        <span>
+          Aprender
+        </span>
+
+        <div className="lesson-arrow">
+          →
+        </div>
+
       </div>
+
     </button>
   )
 }

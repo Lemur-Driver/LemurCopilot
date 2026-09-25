@@ -1,6 +1,12 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+} from 'react-router-dom'
+
 import Home from './pages/Home'
 import Lesson from './pages/Lesson'
+
 
 function App() {
   return (
@@ -23,5 +29,6 @@ function App() {
     </BrowserRouter>
   )
 }
+
 
 export default App

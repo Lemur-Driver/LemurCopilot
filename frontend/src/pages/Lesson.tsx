@@ -1,7 +1,16 @@
-import { useNavigate, useParams } from 'react-router-dom'
-import Quiz, { type QuizQuestion } from '../components/Quiz'
+import {
+  useNavigate,
+  useParams,
+} from 'react-router-dom'
+
+import Quiz, {
+  type QuizQuestion,
+} from '../components/Quiz'
+
 import LemurLoader from '../components/LemurLoader'
+
 import { course } from '../data/course'
+
 
 const mockQuestions: QuizQuestion[] = [
   {
@@ -15,6 +24,7 @@ const mockQuestions: QuizQuestion[] = [
     ],
     correctAnswer: 0,
   },
+
   {
     question:
       '¿Cuál es uno de los objetivos del enfoque de Sistema Seguro?',
@@ -26,6 +36,7 @@ const mockQuestions: QuizQuestion[] = [
     ],
     correctAnswer: 1,
   },
+
   {
     question:
       '¿Qué reconoce el enfoque de Sistema Seguro respecto a las personas?',
@@ -39,71 +50,187 @@ const mockQuestions: QuizQuestion[] = [
   },
 ]
 
+
 function Lesson() {
-  const { lessonId } = useParams()
-  const navigate = useNavigate()
+
+  const { lessonId } =
+    useParams()
+
+  const navigate =
+    useNavigate()
+
 
   const lesson = course
-    .flatMap((unit) => unit.lessons)
-    .find((lesson) => lesson.id === lessonId)
+    .flatMap(
+      (unit) => unit.lessons
+    )
+    .find(
+      (lesson) =>
+        lesson.id === lessonId
+    )
+
 
   if (!lesson) {
+
     return (
       <main className="not-found">
-        <h1>Clase no encontrada</h1>
 
-        <button onClick={() => navigate('/')}>
+        <div className="not-found-icon">
+          🐒
+        </div>
+
+        <h1>
+          No encontré esta clase
+        </h1>
+
+        <p>
+          Volvamos al camino.
+        </p>
+
+        <button
+          className="primary-button"
+          onClick={() =>
+            navigate('/')
+          }
+        >
           Volver al inicio
         </button>
+
       </main>
     )
   }
 
+
   return (
     <main className="lesson-page">
 
-      <button
-        className="back-button"
-        onClick={() => navigate('/')}
-      >
-        ← Volver al camino
-      </button>
+      <nav className="lesson-nav">
+
+        <button
+          className="back-button"
+          onClick={() =>
+            navigate('/')
+          }
+        >
+          ←
+        </button>
+
+
+        <div className="lesson-nav-info">
+
+          <span>
+            {lesson.code}
+          </span>
+
+          <strong>
+            {lesson.title}
+          </strong>
+
+        </div>
+
+
+        <div className="lesson-nav-xp">
+          ⭐ +30 XP
+        </div>
+
+      </nav>
+
 
       <header className="lesson-header">
 
-        <span>{lesson.code}</span>
+        <span className="lesson-header-label">
+          📖 LECCIÓN
+        </span>
 
-        <h1>{lesson.title}</h1>
 
-        <p>{lesson.description}</p>
+        <h1>
+          {lesson.title}
+        </h1>
+
+
+        <p>
+          {lesson.description}
+        </p>
+
+
+        <div className="lesson-details">
+
+          <span>
+            ⏱ 5–10 min
+          </span>
+
+          <span>
+            🎯 3 preguntas
+          </span>
+
+          <span>
+            🇨🇱 Clase B
+          </span>
+
+        </div>
 
       </header>
 
+
       <section className="lesson-content">
 
-        <div className="lesson-content-label">
-          📖 Mini clase
-        </div>
+        <span className="content-label">
+          Lo importante
+        </span>
 
         <h2>
           Aprende lo esencial
         </h2>
 
-        <p>
-          En esta clase aprenderás los conceptos fundamentales
-          relacionados con los siniestros de tránsito en Chile.
-        </p>
 
         <p>
-          Este contenido será generado dinámicamente utilizando
-          el manual oficial y nuestro sistema RAG.
+          En esta clase aprenderás
+          conceptos fundamentales
+          relacionados con los
+          siniestros de tránsito
+          en Chile.
+        </p>
+
+
+        <div className="tip-card">
+
+          <div className="tip-icon">
+            💡
+          </div>
+
+
+          <div>
+
+            <strong>
+              Consejo de Lemur
+            </strong>
+
+            <p>
+              No intentes memorizar.
+              Primero comprende la idea
+              y luego ponla en práctica.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <p>
+          Este contenido será generado
+          dinámicamente utilizando
+          el manual oficial y el sistema RAG.
         </p>
 
       </section>
 
+
       <LemurLoader />
 
-      <Quiz questions={mockQuestions} />
+
+      <Quiz
+        questions={mockQuestions}
+      />
 
     </main>
   )

@@ -1,23 +1,129 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+@import url(
+  'https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Outfit:wght@600;700;800&display=swap'
+);
 
 :root {
   font-family: 'Nunito', sans-serif;
-  color: #241536;
-  background: #faf7ff;
+
+  color: #34433a;
+  background: #f7f7f2;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+
+  /* =========================
+     BRAND
+  ========================= */
+
+  --bg: #f7f7f2;
+  --surface: #ffffff;
+  --surface-soft: #f1f4ec;
+
+  --text: #34433a;
+  --text-strong: #25332a;
+  --muted: #7d8a80;
+  --dim: #a9b2aa;
+
+  /* Lemur / nature */
+  --forest: #2f6b4f;
+  --forest-dark: #24543e;
+
+  /* Main game action */
+  --primary: #58cc55;
+  --primary-dark: #46a944;
+  --primary-soft: #e8f8e6;
+
+  /* Road / rewards */
+  --yellow: #f5c84c;
+  --yellow-dark: #d9a928;
+  --yellow-soft: #fff5d4;
+
+  /* Information */
+  --blue: #58aee8;
+  --blue-dark: #3b91cd;
+  --blue-soft: #e8f5fd;
+
+  /* Errors */
+  --red: #e9685d;
+  --red-dark: #ca5047;
+  --red-soft: #fceae8;
+
+  /* Road */
+  --asphalt: #3c454c;
+
+  --border: #e2e8df;
+  --border-dark: #d2dacd;
+
+  --shadow:
+    0 5px 0 rgba(42, 63, 48, 0.10);
+
+  --shadow-small:
+    0 3px 0 rgba(42, 63, 48, 0.10);
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+  background: var(--bg);
+}
+
 body {
   margin: 0;
+
   min-width: 320px;
-  background: #faf7ff;
+  min-height: 100vh;
+
+  color: var(--text);
+
+  background:
+    radial-gradient(
+      circle at 90% 5%,
+      rgba(88, 204, 85, 0.07),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 5% 45%,
+      rgba(245, 200, 76, 0.06),
+      transparent 20%
+    ),
+    var(--bg);
+}
+
+button,
+input {
+  font-family: inherit;
 }
 
 button {
-  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Outfit', sans-serif;
+  color: var(--text-strong);
+}
+
+::selection {
+  color: var(--text-strong);
+  background: #cdefc9;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd7c8;
+
+  border-radius: 10px;
 }
