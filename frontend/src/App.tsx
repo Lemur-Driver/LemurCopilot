@@ -6,6 +6,7 @@ import {
 
 import Home from './pages/Home'
 import Lesson from './pages/Lesson'
+import Login from './pages/Login'
 
 
 function App() {
@@ -13,6 +14,11 @@ function App() {
     <BrowserRouter>
 
       <Routes>
+
+        <Route
+          path="/login"
+          element={<Login />}
+        />
 
         <Route
           path="/"

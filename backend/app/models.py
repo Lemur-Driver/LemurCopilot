@@ -23,9 +23,12 @@ class MasteryEntry(BaseModel):
 
 
 class Student(MongoBaseModel):
+    google_sub: str
     name: str
     email: str
+    picture: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_login: datetime = Field(default_factory=datetime.utcnow)
     current_unit: str | None = None
     mastery: dict[str, MasteryEntry] = Field(default_factory=dict)
 

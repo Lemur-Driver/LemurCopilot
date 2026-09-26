@@ -18,6 +18,7 @@ content_chunks_collection = database["manual_chunks"]
 
 async def ensure_indexes() -> None:
     await students_collection.create_index("email", unique=True)
+    await students_collection.create_index("google_sub", unique=True)
     await exercises_collection.create_index([("concept_id", 1), ("difficulty", 1), ("reviewed", 1)])
     await sessions_collection.create_index("student_id")
     await concepts_collection.create_index("unit")

@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import client, ensure_indexes
 from app.routes import students
+from app.routes.auth import router as auth_router
 from app.routes.rag import router as rag_router
 from app.routes.lessons import router as lessons_router
 
@@ -27,6 +28,7 @@ app.add_middleware(
 )
  
 app.include_router(students.router)
+app.include_router(auth_router)
 app.include_router(rag_router)
 app.include_router(lessons_router)
 
