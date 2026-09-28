@@ -2610,3 +2610,73 @@
   }
 
 }
+
+/* =========================================================
+   CHAT SOURCES
+   ========================================================= */
+
+.chat-sources {
+  max-width: 82%;
+
+  margin-top: 7px;
+  padding: 9px 11px;
+
+  border: 1px solid
+    var(--border);
+
+  border-radius: 11px;
+
+  background:
+    #f5f8f2;
+
+  color:
+    var(--muted);
+
+  font-size: 10px;
+}
+
+
+.chat-sources-title {
+  margin-bottom: 6px;
+
+  color:
+    var(--forest);
+
+  font-size: 10px;
+  font-weight: 900;
+
+  text-transform:
+    uppercase;
+
+  letter-spacing:
+    0.5px;
+}
+
+
+.chat-source {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 6px;
+
+  padding: 3px 0;
+
+  line-height: 1.35;
+}
+
+
+.chat-source-topic {
+  flex-shrink: 0;
+
+  padding: 2px 5px;
+
+  border-radius: 5px;
+
+  background:
+    var(--primary-soft);
+
+  color:
+    var(--forest);
+
+  font-weight: 900;
+}

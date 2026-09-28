@@ -1,3 +1,4 @@
+import json
 import os
 import httpx
 
@@ -128,6 +129,69 @@ async def generate_with_ollama(
         "content"
     ]
 
+#----------------- Streaming
+
+async def stream_with_ollama(
+    prompt: str,
+):
+    payload = {
+        "model": OLLAMA_MODEL,
+
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
+
+        "stream": True,
+
+        "options": {
+            "temperature": 0.2,
+        },
+    }
+
+
+    async with httpx.AsyncClient(
+        timeout=120
+    ) as client:
+
+        async with client.stream(
+            "POST",
+            f"{OLLAMA_URL}/api/chat",
+            json=payload,
+        ) as response:
+
+            response.raise_for_status()
+
+
+            async for line in response.aiter_lines():
+
+                if not line:
+                    continue
+
+
+                data = json.loads(
+                    line
+                )
+
+
+                content = (
+                    data
+                    .get("message", {})
+                    .get("content", "")
+                )
+
+
+                if content:
+                    yield content
+
+
+                if data.get(
+                    "done",
+                    False,
+                ):
+                    break
 
 
 # ============================================================
@@ -153,6 +217,37 @@ async def generate_text(
             prompt=prompt,
             json_mode=json_mode,
         )
+
+
+    raise ValueError(
+        f"Proveedor LLM no soportado: "
+        f"{LLM_PROVIDER}"
+    )
+    
+    
+#-------------------Streaming
+async def stream_text(
+    prompt: str,
+):
+    if LLM_PROVIDER == "ollama":
+
+        async for chunk in stream_with_ollama(
+            prompt
+        ):
+            yield chunk
+
+        return
+
+
+    if LLM_PROVIDER == "gemini":
+
+        response = await generate_with_gemini(
+            prompt
+        )
+
+        yield response
+
+        return
 
 
     raise ValueError(
