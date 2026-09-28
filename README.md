@@ -23,6 +23,10 @@ Usuario selecciona una clase
 → LLM genera quiz
 → React renderiza ambos.
 
+## 📚 Documentación técnica
+
+La documentación completa del proyecto (arquitectura, backend, frontend, base de datos, pipeline RAG, API, flujos y despliegue) está en la carpeta [docs/](./docs/README.md).
+
 ## Ejecutar
 
 docker compose up --build
