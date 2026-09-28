@@ -18,8 +18,11 @@ class MongoBaseModel(BaseModel):
 
 class MasteryEntry(BaseModel):
     score: float = 0.0
+    last_score: float = 0.0
+    best_score: float = 0.0
     attempts: int = 0
     last_seen: datetime | None = None
+    failed_questions: list[str] = Field(default_factory=list)
 
 
 class Student(MongoBaseModel):

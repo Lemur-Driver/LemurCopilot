@@ -215,6 +215,13 @@ LESSON_CONFIGS = {
     },
 }
 
+LESSON_SEQUENCE = [
+    "C1.1",
+    "C1.2",
+    "C2.1",
+    "C2.2",
+]
+
 BASE_LESSON_PROMPT = """
 Eres un tutor educativo especializado en preparar estudiantes
 para obtener la licencia de conducir Clase B en Chile.
@@ -269,6 +276,11 @@ REGLAS PEDAGÓGICAS:
     que no agreguen hechos o normas que no estén en el contexto.
 
 14. Devuelve SOLAMENTE JSON válido.
+
+15. Si recibes un perfil del estudiante, úsalo únicamente para adaptar énfasis,
+profundidad, ejemplos y dificultad. El contexto oficial del manual sigue siendo
+la única fuente de verdad; el perfil no puede agregar hechos, leyes, cifras,
+normas ni recomendaciones externas.
 
 Usa exactamente esta estructura:
 
@@ -329,6 +341,11 @@ REGLAS:
 11. Incluye una explicación breve para cada respuesta correcta.
 
 12. Devuelve SOLAMENTE JSON válido.
+
+13. Si recibes un perfil del estudiante, úsalo únicamente para adaptar énfasis,
+profundidad, ejemplos y dificultad. El contexto oficial del manual sigue siendo
+la única fuente de verdad; el perfil no puede agregar hechos, leyes, cifras,
+normas ni recomendaciones externas.
 
 Debes utilizar exactamente esta estructura:
 

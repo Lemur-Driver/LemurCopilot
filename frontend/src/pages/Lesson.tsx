@@ -14,6 +14,8 @@ import Quiz, {
 
 import LemurLoader from '../components/LemurLoader'
 import { course } from '../data/course'
+import { useAuth } from '../auth/useAuth'
+import type { QuizResultAnswer } from '../components/Quiz'
 
 
 // ============================================================
@@ -53,14 +55,7 @@ interface GenerateLessonResponse {
 
 
 // ============================================================
-// API
-// ============================================================
-
-const API_URL =
-  import.meta.env.VITE_API_URL ??
-  'http://localhost:8000'
-
-
+// COMPONENTE
 // ============================================================
 // COMPONENT
 // ============================================================
@@ -69,6 +64,7 @@ function Lesson() {
   const { lessonId } = useParams()
 
   const navigate = useNavigate()
+  const { authFetch } = useAuth()
 
 
   // ----------------------------------------------------------
@@ -138,21 +134,9 @@ function Lesson() {
         setShowQuiz(false)
 
 
-        const response = await fetch(
-          `${API_URL}/lessons/generate/${encodeURIComponent(
-            lessonId
-          )}`,
-          {
-            method: 'POST',
-
-            headers: {
-              'Content-Type':
-                'application/json',
-            },
-
-            signal:
-              controller.signal,
-          }
+        const response = await authFetch(
+          `/lessons/generate/${encodeURIComponent(lessonId)}`,
+          { method: 'POST', signal: controller.signal }
         )
 
 
@@ -229,7 +213,7 @@ function Lesson() {
       controller.abort()
     }
 
-  }, [lessonId])
+  }, [authFetch, lessonId])
 
 
   // ==========================================================
@@ -476,11 +460,13 @@ function Lesson() {
 
 
         <Quiz
-          questions={
-            generatedContent
-              .quiz
-              .questions
-          }
+          questions={generatedContent.quiz.questions}
+          onComplete={(answers: QuizResultAnswer[]) => {
+            void authFetch('/students/me/quiz-results', {
+              method: 'POST',
+              body: JSON.stringify({ topic: lessonId, answers }),
+            })
+          }}
         />
 
       </main>

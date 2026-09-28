@@ -3,6 +3,7 @@ import os
 import httpx
 
 from google import genai
+from google.genai import types
 
 # ============================================================
 # CONFIG
@@ -41,7 +42,14 @@ gemini_client = genai.Client(
 
 async def generate_with_gemini(
     prompt: str,
+    json_mode: bool = True,
 ) -> str:
+
+    config = None
+    if json_mode:
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json"
+        )
 
     response = (
         gemini_client
@@ -49,6 +57,7 @@ async def generate_with_gemini(
         .generate_content(
             model=GEMINI_MODEL,
             contents=prompt,
+            config=config,
         )
     )
 

@@ -12,6 +12,7 @@ from app.services.content_service import (
 from app.services.llm_service import (
     generate_text,
 )
+from app.services.profile_service import render_profile_block
 
 
 # ============================================================
@@ -313,6 +314,7 @@ async def generate_lesson(
     topic: str,
     chunks: list[dict] | None = None,
     config: dict | None = None,
+    student_profile: dict | None = None,
 ):
 
     # --------------------------------------------------------
@@ -400,6 +402,9 @@ ESTRATEGIA PEDAGÓGICA:
 ASPECTOS QUE DEBES PRIORIZAR:
 
 {lesson_focus}
+
+
+{render_profile_block(student_profile)}
 
 
 CONTEXTO DEL MANUAL OFICIAL:

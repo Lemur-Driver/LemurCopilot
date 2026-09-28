@@ -2,15 +2,15 @@ import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import GoogleSignInButton, { type GoogleUser } from '../components/GoogleSignInButton'
 import lemurImage from '../assets/icon.png'
+import { useAuth } from '../auth/useAuth'
 
 function Login() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [error, setError] = useState<string | null>(null)
 
   function handleSuccess(user: GoogleUser) {
-    // TODO: cuando el backend emita sesión propia, guardarla acá (ej. localStorage/cookie)
-    // en lugar de solo loguear el perfil verificado.
-    console.log('Usuario autenticado con Google:', user)
+    login(user)
     setError(null)
     navigate('/')
   }

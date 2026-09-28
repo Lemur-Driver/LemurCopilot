@@ -9,6 +9,7 @@ export interface GoogleUser {
   email: string;
   name: string;
   picture: string | null;
+  access_token: string;
 }
 
 interface GoogleSignInButtonProps {

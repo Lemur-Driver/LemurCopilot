@@ -1,7 +1,9 @@
+import type React from 'react'
 import {
   BrowserRouter,
   Routes,
   Route,
+  Navigate,
 } from 'react-router-dom'
 
 import Home from './pages/Home'
@@ -9,11 +11,19 @@ import Lesson from './pages/Lesson'
 import Login from './pages/Login'
 
 import ChatWidget from './components/ChatWidget'
+import { AuthProvider } from './auth/AuthContext'
+import { useAuth } from './auth/useAuth'
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { token, loading } = useAuth()
+  if (loading) return null
+  return token ? <>{children}</> : <Navigate to="/login" replace />
+}
 
 function App() {
   return (
-    <BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
 
       <Routes>
 
@@ -24,12 +34,12 @@ function App() {
 
         <Route
           path="/"
-          element={<Home />}
+          element={<ProtectedRoute><Home /></ProtectedRoute>}
         />
 
         <Route
           path="/lesson/:lessonId"
-          element={<Lesson />}
+          element={<ProtectedRoute><Lesson /></ProtectedRoute>}
         />
 
       </Routes>
@@ -37,6 +47,7 @@ function App() {
       <ChatWidget />
 
     </BrowserRouter>
+    </AuthProvider>
   )
 }
 

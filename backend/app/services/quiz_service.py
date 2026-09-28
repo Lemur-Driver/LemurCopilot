@@ -7,6 +7,7 @@ from app.prompts.lesson_prompts import (
 from app.services.llm_service import (
     generate_text,
 )
+from app.services.profile_service import render_profile_block
 
 
 # ============================================================
@@ -161,6 +162,7 @@ async def generate_quiz(
     lesson: dict,
     chunks: list[dict],
     config: dict,
+    student_profile: dict | None = None,
 ):
 
     # --------------------------------------------------------
@@ -217,6 +219,9 @@ OBJETIVO DE APRENDIZAJE:
 ENFOQUE DE LA EVALUACIÓN:
 
 {quiz_focus}
+
+
+{render_profile_block(student_profile)}
 
 
 LECCIÓN QUE ACABA DE ESTUDIAR EL ESTUDIANTE:

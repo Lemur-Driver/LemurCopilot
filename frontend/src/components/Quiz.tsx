@@ -7,12 +7,21 @@ export interface QuizQuestion {
   explanation?: string
 }
 
+export interface QuizResultAnswer {
+  question: string
+  selectedIndex: number
+  correctIndex: number
+  isCorrect: boolean
+}
+
 interface QuizProps {
   questions: QuizQuestion[]
+  onComplete?: (answers: QuizResultAnswer[]) => void
 }
 
 function Quiz({
   questions,
+  onComplete,
 }: QuizProps) {
 
   const [
@@ -24,6 +33,8 @@ function Quiz({
     selectedAnswer,
     setSelectedAnswer,
   ] = useState<number | null>(null)
+
+  const [answers, setAnswers] = useState<QuizResultAnswer[]>([])
 
 
   const question =
@@ -47,6 +58,19 @@ function Quiz({
     }
 
     setSelectedAnswer(index)
+
+    const answer: QuizResultAnswer = {
+      question: question.question,
+      selectedIndex: index,
+      correctIndex: question.correctAnswer,
+      isCorrect: index === question.correctAnswer,
+    }
+    const nextAnswers = [...answers, answer]
+    setAnswers(nextAnswers)
+
+    if (currentQuestion === questions.length - 1) {
+      onComplete?.(nextAnswers)
+    }
   }
 
 

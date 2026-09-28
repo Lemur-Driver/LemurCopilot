@@ -1,7 +1,12 @@
 from fastapi import (
     APIRouter,
+    Depends,
     HTTPException,
 )
+
+from app.dependencies import get_current_student
+from app.models import Student
+from app.services.profile_service import build_student_profile
 
 from app.prompts.lesson_prompts import (
     LESSON_CONFIGS,
@@ -31,6 +36,7 @@ router = APIRouter(
 )
 async def create_lesson(
     topic: str,
+    student: Student = Depends(get_current_student),
 ):
 
     try:
@@ -66,14 +72,16 @@ async def create_lesson(
 
 
         # ====================================================
-        # 3. GENERAR LECCIÓN
+        # 3. PERFIL Y GENERACIÓN DE LECCIÓN
         # ====================================================
 
+        student_profile = build_student_profile(student, topic)
         lesson_result = (
             await generate_lesson(
                 topic=topic,
                 chunks=chunks,
                 config=config,
+                student_profile=student_profile,
             )
         )
 
@@ -92,6 +100,7 @@ async def create_lesson(
             lesson=lesson,
             chunks=chunks,
             config=config,
+            student_profile=student_profile,
         )
 
 

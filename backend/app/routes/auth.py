@@ -8,6 +8,8 @@ from app.services.auth_service import (
     verify_google_id_token,
 )
 
+from app.services.token_service import create_access_token
+
 router = APIRouter(
     prefix="/auth",
     tags=["auth"],
@@ -24,7 +26,8 @@ class GoogleAuthResponse(BaseModel):
     email: str
     name: str
     picture: str | None
-
+    access_token: str
+    token_type: str = "bearer"
 
 @router.post("/google", response_model=GoogleAuthResponse)
 async def google_auth(request: GoogleAuthRequest):
@@ -42,4 +45,5 @@ async def google_auth(request: GoogleAuthRequest):
         email=student.email,
         name=student.name,
         picture=student.picture,
+        access_token=create_access_token(student.id),
     )

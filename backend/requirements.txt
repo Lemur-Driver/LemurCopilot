@@ -4,5 +4,6 @@ pymongo
 httpx
 google-genai
 google-auth
+PyJWT
 pymupdf
 sentence-transformers

@@ -22,3 +22,6 @@ backend/app/scripts/
 # OS
 .DS_Store
 Thumbs.db
+
+#Planes
+PLAN-*.md
