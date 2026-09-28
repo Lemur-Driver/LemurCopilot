@@ -109,6 +109,8 @@ function Lesson() {
     setShowQuiz,
   ] = useState(false)
 
+  const [quizAttempt, setQuizAttempt] = useState(0)
+
 
   // ----------------------------------------------------------
   // Cargar / generar lección
@@ -461,11 +463,28 @@ function Lesson() {
 
         <Quiz
           questions={generatedContent.quiz.questions}
-          onComplete={(answers: QuizResultAnswer[]) => {
-            void authFetch('/students/me/quiz-results', {
+          key={quizAttempt}
+          onRetry={() => {
+            setQuizAttempt((attempt) => attempt + 1)
+          }}
+          onNextLesson={() => {
+            const lessons = course.flatMap((unit) => unit.lessons)
+            const currentIndex = lessons.findIndex((lesson) => lesson.id === lessonId)
+            const nextLesson = lessons[currentIndex + 1]
+            if (nextLesson) {
+              navigate(`/lesson/${nextLesson.id}`)
+            } else {
+              navigate('/')
+            }
+          }}
+          onComplete={async (answers: QuizResultAnswer[]) => {
+            const response = await authFetch('/students/me/quiz-results', {
               method: 'POST',
               body: JSON.stringify({ topic: lessonId, answers }),
             })
+            if (!response.ok) {
+              throw new Error('No se pudo guardar el resultado del quiz')
+            }
           }}
         />
 

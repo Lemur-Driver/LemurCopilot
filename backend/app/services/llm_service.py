@@ -16,7 +16,7 @@ LLM_PROVIDER = os.getenv(
 
 OLLAMA_URL = os.environ[
     "OLLAMA_URL"
-]
+].rstrip("/")
 
 OLLAMA_MODEL = os.environ[
     "OLLAMA_MODEL"

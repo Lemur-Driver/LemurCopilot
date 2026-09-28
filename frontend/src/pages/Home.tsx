@@ -1,8 +1,49 @@
+import { useEffect, useMemo, useState } from 'react'
 import LearningPath from '../components/LearningPath'
 import { course } from '../data/course'
+import type { MasteryMap } from '../data/mastery'
 import lemurImage from '../assets/icon.png'
+import { useAuth } from '../auth/useAuth'
 
 function Home() {
+  const { user, authFetch } = useAuth()
+  const [mastery, setMastery] = useState<MasteryMap>({})
+
+  useEffect(() => {
+    let active = true
+    void authFetch('/students/me/mastery')
+      .then(async (response) => {
+        if (response.ok && active) {
+          const data = await response.json() as { mastery?: MasteryMap }
+          setMastery(data.mastery ?? {})
+        }
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [authFetch])
+
+  const lessonEntries = useMemo(
+    () => course.flatMap((unit) => unit.lessons),
+    [],
+  )
+  const completedLessons = lessonEntries.filter(
+    (lesson) => (mastery[lesson.id]?.best_score ?? 0) >= 0.6,
+  ).length
+  const preparation = lessonEntries.length
+    ? Math.round((completedLessons / lessonEntries.length) * 100)
+    : 0
+  const attemptedLessons = lessonEntries.filter(
+    (lesson) => (mastery[lesson.id]?.attempts ?? 0) > 0,
+  ).length
+  const currentLesson = lessonEntries.find(
+    (lesson) => !(mastery[lesson.id]?.attempts),
+  ) ?? lessonEntries[lessonEntries.length - 1]
+  const currentUnit = course.find((unit) =>
+    unit.lessons.some((lesson) => lesson.id === currentLesson?.id),
+  )
+
   return (
     <main className="home-page">
 
@@ -34,11 +75,11 @@ function Home() {
         <div className="topbar-stats">
 
           <span className="streak">
-            🔥 3 días
+            👋 {user?.name ?? 'Conductor'}
           </span>
 
           <span className="xp">
-            ⭐ 120 XP
+            ⭐ {completedLessons * 40} XP
           </span>
 
         </div>
@@ -67,9 +108,9 @@ function Home() {
 
 
           <h1>
-            Aprende a conducir
+            Hola, {user?.name?.split(' ')[0] ?? 'conductor'}
             <span>
-              {' '}a tu propio ritmo.
+              {' '}sigue aprendiendo a tu propio ritmo.
             </span>
           </h1>
 
@@ -87,7 +128,7 @@ function Home() {
               href="#learning-path"
               className="primary-action"
             >
-              Continuar aprendiendo
+              {attemptedLessons ? 'Continuar aprendiendo' : 'Comenzar a aprender'}
 
               <span>
                 →
@@ -98,11 +139,11 @@ function Home() {
             <div className="hero-progress">
 
               <strong>
-                Unidad 1
+                {currentUnit?.code ?? 'Tu camino'}
               </strong>
 
               <span>
-                En progreso
+                {preparation}% completado
               </span>
 
             </div>
@@ -139,7 +180,7 @@ function Home() {
           </div>
 
           <div>
-            <strong>59%</strong>
+            <strong>{preparation}%</strong>
             <span>Preparación</span>
           </div>
 
@@ -153,7 +194,7 @@ function Home() {
           </div>
 
           <div>
-            <strong>3 días</strong>
+            <strong>{attemptedLessons} intentos</strong>
             <span>Racha actual</span>
           </div>
 
@@ -167,7 +208,7 @@ function Home() {
           </div>
 
           <div>
-            <strong>12</strong>
+            <strong>{completedLessons}</strong>
             <span>Clases completadas</span>
           </div>
 
@@ -207,6 +248,7 @@ function Home() {
           <LearningPath
             key={unit.id}
             unit={unit}
+          mastery={mastery}
           />
         ))}
 

@@ -1,13 +1,23 @@
 import type { Unit } from '../data/course'
 import LessonCard from './LessonCard'
 
+import type { MasteryMap } from '../data/mastery'
+
 interface LearningPathProps {
   unit: Unit
+  mastery: MasteryMap
 }
 
 function LearningPath({
   unit,
+  mastery,
 }: LearningPathProps) {
+  const completedLessons = unit.lessons.filter(
+    (lesson) => (mastery[lesson.id]?.best_score ?? 0) >= 0.6,
+  ).length
+  const progress = unit.lessons.length
+    ? Math.round((completedLessons / unit.lessons.length) * 100)
+    : 0
 
   return (
     <section className="unit-section">
@@ -45,7 +55,7 @@ function LearningPath({
             </span>
 
             <strong>
-              0%
+              {progress}%
             </strong>
 
           </div>
@@ -56,7 +66,7 @@ function LearningPath({
             <div
               className="unit-progress-fill"
               style={{
-                width: '0%',
+                width: `${progress}%`,
               }}
             />
 
@@ -71,13 +81,12 @@ function LearningPath({
 
         {unit.lessons.map(
           (lesson, index) => (
-
             <LessonCard
-              key={lesson.id}
-              lesson={lesson}
-              number={index + 1}
+        key={lesson.id}
+        lesson={lesson}
+        number={index + 1}
+        mastery={mastery[lesson.id]}
             />
-
           )
         )}
 

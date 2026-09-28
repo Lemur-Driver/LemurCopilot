@@ -16,12 +16,16 @@ export interface QuizResultAnswer {
 
 interface QuizProps {
   questions: QuizQuestion[]
-  onComplete?: (answers: QuizResultAnswer[]) => void
+  onComplete?: (answers: QuizResultAnswer[]) => Promise<void> | void
+  onRetry?: () => void
+  onNextLesson?: () => void
 }
 
 function Quiz({
   questions,
   onComplete,
+  onRetry,
+  onNextLesson,
 }: QuizProps) {
 
   const [
@@ -35,6 +39,14 @@ function Quiz({
   ] = useState<number | null>(null)
 
   const [answers, setAnswers] = useState<QuizResultAnswer[]>([])
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [completed, setCompleted] = useState(false)
+
+  const score = answers.length
+    ? answers.filter((answer) => answer.isCorrect).length / answers.length
+    : 0
+  const passed = score === 1
 
 
   const question =
@@ -69,7 +81,12 @@ function Quiz({
     setAnswers(nextAnswers)
 
     if (currentQuestion === questions.length - 1) {
-      onComplete?.(nextAnswers)
+      setIsSaving(true)
+      setSaveError(null)
+      void Promise.resolve(onComplete?.(nextAnswers))
+        .then(() => setCompleted(true))
+        .catch(() => setSaveError('No pudimos guardar tu resultado. Intenta nuevamente.'))
+        .finally(() => setIsSaving(false))
     }
   }
 
@@ -233,6 +250,38 @@ function Quiz({
             >
               Siguiente pregunta →
             </button>
+          )}
+
+          {currentQuestion === questions.length - 1 && (
+            <div className="quiz-completion">
+              {isSaving && <p>Guardando tu resultado...</p>}
+              {completed && !saveError && (
+                <div className="quiz-completion-modal" role="status">
+                  <h3>✅ Quiz completado</h3>
+                  <p>
+                    Obtuviste {Math.round(score * 100)}% y tu resultado fue guardado.
+                  </p>
+                  {passed ? (
+                    <button className="next-button" onClick={onNextLesson}>
+                      Siguiente lección →
+                    </button>
+                  ) : (
+                    <button className="next-button" onClick={onRetry}>
+                      Rehacer quiz
+                    </button>
+                  )}
+                </div>
+              )}
+              {saveError && (
+                <div className="quiz-completion-modal" role="alert">
+                  <h3>No se pudo guardar el quiz</h3>
+                  <p className="quiz-error">{saveError}</p>
+                  <button className="next-button" onClick={onRetry}>
+                    Intentar nuevamente
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
         </div>

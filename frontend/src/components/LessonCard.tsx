@@ -1,15 +1,22 @@
 import { useNavigate } from 'react-router-dom'
 import type { Lesson } from '../data/course'
+import type { MasteryEntry } from '../data/mastery'
 
 interface LessonCardProps {
   lesson: Lesson
   number: number
+  mastery?: MasteryEntry
 }
 
 function LessonCard({
   lesson,
   number,
+  mastery,
 }: LessonCardProps) {
+  const score = mastery?.best_score ?? 0
+  const completed = score >= 0.6
+  const started = Boolean(mastery?.attempts)
+  const actionLabel = completed ? 'Repasar' : started ? 'Continuar' : 'Aprender'
 
   const navigate = useNavigate()
 
@@ -62,7 +69,7 @@ function LessonCard({
       <div className="lesson-action">
 
         <span>
-          Aprender
+          {actionLabel}
         </span>
 
         <div className="lesson-arrow">
