@@ -1,9 +1,7 @@
 import os
-
 import httpx
 
 from google import genai
-
 
 # ============================================================
 # CONFIG
@@ -62,6 +60,7 @@ async def generate_with_gemini(
 
 async def generate_with_ollama(
     prompt: str,
+    json_mode: bool = True,
 ) -> str:
 
     payload = {
@@ -76,15 +75,13 @@ async def generate_with_ollama(
 
         "stream": False,
 
-        # Obliga a Ollama a responder
-        # utilizando JSON válido.
-        "format": "json",
-
         "options": {
-            # Un poco más determinista.
             "temperature": 0.2,
         },
     }
+    
+    if json_mode:
+        payload["format"] = "json"
 
 
     async with httpx.AsyncClient() as client:
@@ -94,9 +91,32 @@ async def generate_with_ollama(
             json=payload,
             timeout=120,
         )
+        
+    if not response.is_success:
+
+        print(
+            "\n"
+            "ERROR DEVUELTO POR OLLAMA"
+            "\n"
+        )
+
+        print(
+            "Status:",
+            response.status_code,
+        )
+
+        print(
+            "Body:"
+        )
+
+        print(
+            response.text
+        )
+
+        print()
 
 
-    response.raise_for_status()
+        response.raise_for_status()
 
 
     data = response.json()
@@ -109,25 +129,29 @@ async def generate_with_ollama(
     ]
 
 
+
 # ============================================================
 # PROVIDER
 # ============================================================
 
 async def generate_text(
     prompt: str,
+    json_mode: bool = True,
 ) -> str:
 
     if LLM_PROVIDER == "ollama":
 
         return await generate_with_ollama(
-            prompt
+            prompt=prompt,
+            json_mode=json_mode,
         )
 
 
     elif LLM_PROVIDER == "gemini":
 
         return await generate_with_gemini(
-            prompt
+            prompt=prompt,
+            json_mode=json_mode,
         )
 
 

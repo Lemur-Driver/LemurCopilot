@@ -8,6 +8,8 @@ import Home from './pages/Home'
 import Lesson from './pages/Lesson'
 import Login from './pages/Login'
 
+import ChatWidget from './components/ChatWidget'
+
 
 function App() {
   return (
@@ -31,6 +33,8 @@ function App() {
         />
 
       </Routes>
+
+      <ChatWidget />
 
     </BrowserRouter>
   )
