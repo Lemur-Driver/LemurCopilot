@@ -150,3 +150,44 @@ o:
   "classification": "OUT_OF_DOMAIN"
 }
 """
+
+En chat_service:
+
+ return f"""
+    {CHAT_SYSTEM_PROMPT}
+
+
+    ============================================================
+    CONTEXTO DEL MANUAL
+    ============================================================
+
+    {rag_context}
+
+
+    ============================================================
+    HISTORIAL
+    ============================================================
+
+    {history_text}
+
+
+    ============================================================
+    PREGUNTA
+    ============================================================
+
+    {current_message}
+
+
+    ============================================================
+    INSTRUCCIÓN FINAL
+    ============================================================
+
+    Responde directamente.
+
+    Integra todos los fragmentos relevantes.
+
+    No agregues información externa.
+
+    Si una parte no puede responderse con seguridad, indícalo
+    sin descartar la información que sí está respaldada.
+    """
