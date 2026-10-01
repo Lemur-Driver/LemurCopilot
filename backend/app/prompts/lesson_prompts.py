@@ -341,9 +341,16 @@ REGLAS:
 
 11. Incluye una explicación breve para cada respuesta correcta.
 
-12. Devuelve SOLAMENTE JSON válido.
+12. Todo el texto visible del quiz debe estar escrito en español neutro
+  latinoamericano, incluyendo cada pregunta, todas las alternativas y
+  cada explicación. No uses inglés, salvo nombres propios o siglas técnicas.
 
-13. Si recibes un perfil del estudiante, úsalo únicamente para adaptar énfasis,
+13. La respuesta debe incluir exactamente la clave raíz "language" con valor
+  "es".
+
+14. Devuelve SOLAMENTE JSON válido.
+
+15. Si recibes un perfil del estudiante, úsalo únicamente para adaptar énfasis,
 profundidad, ejemplos y dificultad. El contexto oficial del manual sigue siendo
 la única fuente de verdad; el perfil no puede agregar hechos, leyes, cifras,
 normas ni recomendaciones externas.
@@ -351,6 +358,7 @@ normas ni recomendaciones externas.
 Debes utilizar exactamente esta estructura:
 
 {
+  "language": "es",
   "questions": [
     {
       "question": "...",

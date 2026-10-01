@@ -63,7 +63,7 @@ async def _known_ids(student_id: str, topic: str) -> set[str]:
 
 
 async def _pool_documents(topic: str) -> list[dict[str, Any]]:
-    return await exercises_collection.find({"topic": topic}).to_list()
+    return await exercises_collection.find({"topic": topic, "language": "es"}).to_list()
 
 
 async def _is_duplicate(topic: str, question: str, options: list[str], existing: list[dict[str, Any]]) -> bool:
@@ -100,6 +100,7 @@ async def _publish_questions(topic: str, questions: list[dict[str, Any]], chunks
 
         document = {
             "topic": topic,
+            "language": "es",
             "type": "multiple_choice",
             "question": text.strip(),
             "options": options,

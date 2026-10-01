@@ -64,6 +64,11 @@ def validate_quiz_json(
     data: dict,
 ):
 
+    if data.get("language") != "es":
+        raise ValueError(
+            "El quiz debe incluir 'language' con valor 'es'"
+        )
+
     if "questions" not in data:
         raise ValueError(
             "El quiz no contiene 'questions'"
@@ -128,6 +133,17 @@ def validate_quiz_json(
                 "debe tener exactamente "
                 "4 alternativas"
             )
+
+        for field, value in [
+            ("question", question["question"]),
+            *[("option", option) for option in options],
+            ("explanation", question["explanation"]),
+        ]:
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    f"Pregunta {index + 1}: "
+                    f"'{field}' debe ser un texto no vacío"
+                )
 
         correct_answer = (
             question["correctAnswer"]

@@ -1034,6 +1034,32 @@
   border-bottom-width: 2px;
 }
 
+.home-button {
+  padding: 9px 14px;
+
+  border: 2px solid var(--border);
+
+  border-bottom:
+    4px solid var(--border-dark);
+
+  border-radius: 14px;
+
+  background: white;
+
+  color: var(--forest);
+
+  font-size: 13px;
+  font-weight: 900;
+
+  cursor: pointer;
+}
+
+.home-button:active {
+  transform: translateY(2px);
+
+  border-bottom-width: 2px;
+}
+
 .lesson-nav-info {
   min-width: 0;
 

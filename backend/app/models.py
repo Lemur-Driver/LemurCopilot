@@ -78,6 +78,7 @@ class Concept(MongoBaseModel):
 
 class Exercise(MongoBaseModel):
     topic: str | None = None
+    language: str = "es"
     concept_id: PyObjectId | None = None
     type: Literal["multiple_choice", "true_false", "open"] = "multiple_choice"
     question: str

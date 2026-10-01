@@ -111,6 +111,8 @@ function Lesson() {
 
   const [quizAttempt, setQuizAttempt] = useState(0)
 
+  const [quizSaved, setQuizSaved] = useState(false)
+
 
   // ----------------------------------------------------------
   // Cargar / generar lección
@@ -130,6 +132,7 @@ function Lesson() {
 
     const loadLesson = async () => {
       try {
+        setQuizSaved(false)
         setLoading(true)
         setError(null)
         setGeneratedContent(null)
@@ -216,6 +219,20 @@ function Lesson() {
     }
 
   }, [authFetch, lessonId])
+
+  const handleExitToHome = () => {
+    if (!quizSaved) {
+      const shouldExit = window.confirm(
+        'Si sales ahora, el progreso de esta lección no se guardará. ¿Quieres volver al inicio?'
+      )
+
+      if (!shouldExit) {
+        return
+      }
+    }
+
+    navigate('/')
+  }
 
 
   // ==========================================================
@@ -425,6 +442,14 @@ function Lesson() {
             ←
           </button>
 
+          <button
+            className="home-button"
+            onClick={handleExitToHome}
+            aria-label="Volver al inicio"
+          >
+            Inicio
+          </button>
+
 
           <div className="lesson-nav-info">
 
@@ -465,6 +490,7 @@ function Lesson() {
           questions={generatedContent.quiz.questions}
           key={quizAttempt}
           onRetry={() => {
+            setQuizSaved(false)
             setQuizAttempt((attempt) => attempt + 1)
           }}
           onNextLesson={() => {
@@ -485,6 +511,8 @@ function Lesson() {
             if (!response.ok) {
               throw new Error('No se pudo guardar el resultado del quiz')
             }
+
+            setQuizSaved(true)
           }}
         />
 
