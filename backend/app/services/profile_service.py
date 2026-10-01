@@ -1,18 +1,18 @@
 import json
 
-from app.models import Student
+from app.models import Student, get_mastery_entry
 from app.prompts.lesson_prompts import LESSON_SEQUENCE
 
 
 def build_student_profile(student: Student, topic: str) -> dict:
-    current = student.mastery.get(topic)
+    current = get_mastery_entry(student.mastery, topic)
     topic_index = LESSON_SEQUENCE.index(topic) if topic in LESSON_SEQUENCE else len(LESSON_SEQUENCE)
     previous_topics = LESSON_SEQUENCE[:topic_index]
 
     previous_mastery = {
-        previous_topic: student.mastery[previous_topic].model_dump(mode="json")
+        previous_topic: get_mastery_entry(student.mastery, previous_topic).model_dump(mode="json")
         for previous_topic in previous_topics
-        if previous_topic in student.mastery
+        if get_mastery_entry(student.mastery, previous_topic)
     }
     failed_questions = list(current.failed_questions) if current else []
     last_score = current.last_score if current else None

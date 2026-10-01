@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from bson import ObjectId
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
@@ -25,6 +25,34 @@ class MasteryEntry(BaseModel):
     failed_questions: list[str] = Field(default_factory=list)
 
 
+def get_mastery_entry(mastery: dict[str, Any], topic: str) -> MasteryEntry | None:
+    value: Any = mastery
+    for part in topic.split("."):
+        if not isinstance(value, dict):
+            return None
+        value = value.get(part)
+    if not isinstance(value, dict):
+        return None
+    return MasteryEntry.model_validate(value)
+
+
+def flatten_mastery(mastery: dict[str, Any]) -> dict[str, MasteryEntry]:
+    flattened: dict[str, MasteryEntry] = {}
+
+    def visit(value: Any, prefix: str) -> None:
+        if not isinstance(value, dict):
+            return
+        if any(field in value for field in MasteryEntry.model_fields):
+            flattened[prefix] = MasteryEntry.model_validate(value)
+            return
+        for key, child in value.items():
+            child_prefix = f"{prefix}.{key}" if prefix else key
+            visit(child, child_prefix)
+
+    visit(mastery, "")
+    return flattened
+
+
 class Student(MongoBaseModel):
     google_sub: str
     name: str
@@ -33,7 +61,7 @@ class Student(MongoBaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_login: datetime = Field(default_factory=datetime.utcnow)
     current_unit: str | None = None
-    mastery: dict[str, MasteryEntry] = Field(default_factory=dict)
+    mastery: dict[str, Any] = Field(default_factory=dict)
 
 
 # ---------- concepts ----------

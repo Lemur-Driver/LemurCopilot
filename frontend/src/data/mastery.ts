@@ -8,3 +8,14 @@ export interface MasteryEntry {
 }
 
 export type MasteryMap = Record<string, MasteryEntry>
+
+export interface DashboardSummary {
+  total_lessons: number
+  completed_lessons: number
+  attempted_lessons: number
+  total_attempts: number
+  preparation: number
+  current_streak_days: number
+  longest_streak_days: number
+  xp: number
+}

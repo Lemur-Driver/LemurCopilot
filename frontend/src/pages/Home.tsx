@@ -1,21 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
 import LearningPath from '../components/LearningPath'
 import { course } from '../data/course'
-import type { MasteryMap } from '../data/mastery'
+import type { DashboardSummary, MasteryMap } from '../data/mastery'
 import lemurImage from '../assets/icon.png'
 import { useAuth } from '../auth/useAuth'
 
 function Home() {
   const { user, authFetch } = useAuth()
   const [mastery, setMastery] = useState<MasteryMap>({})
+  const [dashboard, setDashboard] = useState<DashboardSummary | null>(null)
 
   useEffect(() => {
     let active = true
-    void authFetch('/students/me/mastery')
-      .then(async (response) => {
-        if (response.ok && active) {
-          const data = await response.json() as { mastery?: MasteryMap }
+    void Promise.all([
+      authFetch('/students/me/mastery'),
+      authFetch('/students/me/dashboard'),
+    ])
+      .then(async ([masteryResponse, dashboardResponse]) => {
+        if (!active) return
+        if (masteryResponse.ok) {
+          const data = await masteryResponse.json() as { mastery?: MasteryMap }
           setMastery(data.mastery ?? {})
+        }
+        if (dashboardResponse.ok) {
+          setDashboard(await dashboardResponse.json() as DashboardSummary)
         }
       })
       .catch(() => undefined)
@@ -28,15 +36,9 @@ function Home() {
     () => course.flatMap((unit) => unit.lessons),
     [],
   )
-  const completedLessons = lessonEntries.filter(
-    (lesson) => (mastery[lesson.id]?.best_score ?? 0) >= 0.6,
-  ).length
-  const preparation = lessonEntries.length
-    ? Math.round((completedLessons / lessonEntries.length) * 100)
-    : 0
-  const attemptedLessons = lessonEntries.filter(
-    (lesson) => (mastery[lesson.id]?.attempts ?? 0) > 0,
-  ).length
+  const completedLessons = dashboard?.completed_lessons ?? 0
+  const preparation = dashboard?.preparation ?? 0
+  const attemptedLessons = dashboard?.attempted_lessons ?? 0
   const currentLesson = lessonEntries.find(
     (lesson) => !(mastery[lesson.id]?.attempts),
   ) ?? lessonEntries[lessonEntries.length - 1]
@@ -79,7 +81,7 @@ function Home() {
           </span>
 
           <span className="xp">
-            ⭐ {completedLessons * 40} XP
+            ⭐ {dashboard?.xp ?? 0} XP
           </span>
 
         </div>
@@ -194,7 +196,7 @@ function Home() {
           </div>
 
           <div>
-            <strong>{attemptedLessons} intentos</strong>
+            <strong>{dashboard?.current_streak_days ?? 0} días</strong>
             <span>Racha actual</span>
           </div>
 

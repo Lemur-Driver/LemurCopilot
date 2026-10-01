@@ -220,6 +220,7 @@ LESSON_SEQUENCE = [
     "C1.2",
     "C2.1",
     "C2.2",
+  "C2.3",
 ]
 
 BASE_LESSON_PROMPT = """

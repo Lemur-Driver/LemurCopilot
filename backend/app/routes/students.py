@@ -1,13 +1,15 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.database import client, sessions_collection, students_collection
 from app.dependencies import get_current_student
-from app.models import Student
+from app.models import Student, flatten_mastery, get_mastery_entry
 from app.services.llm_service import generate_text
+from app.prompts.lesson_prompts import LESSON_CONFIGS
 
 router = APIRouter(
     prefix="/students",
@@ -33,14 +35,75 @@ async def get_me(student: Student = Depends(get_current_student)):
 
 @router.get("/me/mastery")
 async def get_mastery(student: Student = Depends(get_current_student)):
-    return {"mastery": student.mastery}
+    return {"mastery": flatten_mastery(student.mastery)}
+
+@router.get("/me/dashboard")
+async def get_dashboard(student: Student = Depends(get_current_student)):
+    lesson_ids = tuple(LESSON_CONFIGS)
+    completed_lessons = sum(
+        1
+        for lesson_id in lesson_ids
+        if (get_mastery_entry(student.mastery, lesson_id).best_score if get_mastery_entry(student.mastery, lesson_id) else 0.0) >= 0.6
+    )
+    attempted_lessons = sum(
+        1
+        for lesson_id in lesson_ids
+        if (get_mastery_entry(student.mastery, lesson_id).attempts if get_mastery_entry(student.mastery, lesson_id) else 0) > 0
+    )
+    total_attempts = sum(
+        get_mastery_entry(student.mastery, lesson_id).attempts if get_mastery_entry(student.mastery, lesson_id) else 0
+        for lesson_id in lesson_ids
+    )
+
+    activity_dates: set = set()
+    cursor = sessions_collection.find(
+        {"student_id": ObjectId(student.id)},
+        {"started_at": 1},
+    )
+    async for session in cursor:
+        started_at = session.get("started_at")
+        if started_at is not None:
+            activity_dates.add(started_at.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("America/Santiago")).date())
+
+    today = datetime.now(ZoneInfo("America/Santiago")).date()
+    current_streak_days = 0
+    latest_activity = max(activity_dates, default=None)
+    if latest_activity and (today - latest_activity).days <= 1:
+        streak_date = latest_activity
+        while streak_date in activity_dates:
+            current_streak_days += 1
+            streak_date = streak_date.fromordinal(streak_date.toordinal() - 1)
+
+    longest_streak_days = 0
+    for activity_date in sorted(activity_dates):
+        streak_length = 1
+        next_date = activity_date.fromordinal(activity_date.toordinal() + 1)
+        while next_date in activity_dates:
+            streak_length += 1
+            next_date = next_date.fromordinal(next_date.toordinal() + 1)
+        longest_streak_days = max(longest_streak_days, streak_length)
+
+    total_lessons = len(lesson_ids)
+    return {
+        "total_lessons": total_lessons,
+        "completed_lessons": completed_lessons,
+        "attempted_lessons": attempted_lessons,
+        "total_attempts": total_attempts,
+        "preparation": round(completed_lessons / total_lessons * 100) if total_lessons else 0,
+        "current_streak_days": current_streak_days,
+        "longest_streak_days": longest_streak_days,
+        "xp": completed_lessons * 40,
+    }
 
 @router.post("/me/quiz-results")
 async def save_quiz_result(request: QuizResultRequest, student: Student = Depends(get_current_student)):
+    if len(request.answers) != 3:
+        raise HTTPException(status_code=400, detail="El quiz debe estar completo antes de guardarse")
+
     now = datetime.utcnow()
     total = len(request.answers)
     score = sum(answer.isCorrect for answer in request.answers) / total if total else 0.0
-    current = student.mastery.get(request.topic)
+    current = get_mastery_entry(student.mastery, request.topic)
     attempts = (current.attempts if current else 0) + 1
     previous_best = (current.best_score if current and current.best_score is not None else current.score if current else 0.0)
     best_score = max(score, previous_best)
