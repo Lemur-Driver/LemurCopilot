@@ -220,7 +220,7 @@ LESSON_SEQUENCE = [
     "C1.2",
     "C2.1",
     "C2.2",
-  "C2.3",
+    "C2.3",
 ]
 
 BASE_LESSON_PROMPT = """
@@ -354,6 +354,9 @@ REGLAS:
 profundidad, ejemplos y dificultad. El contexto oficial del manual sigue siendo
 la única fuente de verdad; el perfil no puede agregar hechos, leyes, cifras,
 normas ni recomendaciones externas.
+
+16. Las alternativas no deben incluir prefijos como "a)", "b)", "c)" o "d)" (Lo mismo con números), 
+esto ya viene directamente en el frontend por lo que no es necesario.
 
 Debes utilizar exactamente esta estructura:
 
