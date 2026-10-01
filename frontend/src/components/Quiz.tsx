@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 export interface QuizQuestion {
+  exerciseId?: string
   question: string
   options: string[]
   correctAnswer: number
@@ -8,6 +9,7 @@ export interface QuizQuestion {
 }
 
 export interface QuizResultAnswer {
+  exerciseId?: string
   question: string
   selectedIndex: number
   correctIndex: number
@@ -72,6 +74,7 @@ function Quiz({
     setSelectedAnswer(index)
 
     const answer: QuizResultAnswer = {
+      exerciseId: question.exerciseId,
       question: question.question,
       selectedIndex: index,
       correctIndex: question.correctAnswer,

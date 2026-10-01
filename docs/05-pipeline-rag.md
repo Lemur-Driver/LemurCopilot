@@ -168,6 +168,14 @@ flowchart TB
 | Disparador | Estudiante abre una clase | Estudiante pregunta |
 | Recuperación | Todos los chunks del tema | Top-5 por similitud |
 | Salida | JSON validado (lección + quiz) | Texto en streaming |
+
+### 5.5.1 Pool adaptativo de preguntas
+
+El quiz no se genera siempre desde cero. Para cada `topic`, el backend consulta el pool compartido de `exercises` y las respuestas históricas del estudiante. Una pregunta cuenta como conocida después de una respuesta correcta.
+
+Si el estudiante conoce al menos el 80% del pool, si el pool está vacío o si no quedan tres preguntas nuevas, se genera un lote adicional usando el contexto RAG del manual. Las preguntas pasan validación estructural y deduplicación por fingerprint y similitud textual antes de publicarse para todos los usuarios.
+
+Cada pregunta entregada lleva un `exerciseId`. Al completar el quiz, el backend recalcula la corrección contra `exercises`, registra la respuesta en `sessions` y actualiza el mastery del estudiante. El cliente no es la fuente de verdad de la respuesta correcta.
 | Fuentes devueltas | Páginas deduplicadas del tema | Páginas deduplicadas de los chunks usados |
 
 ---

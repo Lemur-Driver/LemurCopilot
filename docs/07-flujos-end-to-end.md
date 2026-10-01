@@ -85,19 +85,28 @@ sequenceDiagram
     alt JSON inválido o estructura no conforme
         BE-->>FE: 500 "No se pudo generar la lección"
     end
-    BE->>LLM: generate_text(BASE_QUIZ_PROMPT + lección<br/>+ quiz_focus + contexto)
-    LLM-->>BE: texto JSON (quiz)
-    BE->>BE: limpiar → parsear → validar (3 preguntas, 4 opciones)
+    BE->>DB: Lee pool del topic e historial del estudiante
+    alt Pool vacío, cobertura >= 80% o menos de 3 preguntas nuevas
+        BE->>LLM: generate_text(BASE_QUIZ_PROMPT + lección + contexto)
+        LLM-->>BE: lote JSON de preguntas
+        BE->>BE: validar → fingerprint → deduplicar
+        BE->>DB: Publicar preguntas para todos
+    end
+    BE->>DB: Seleccionar 3 preguntas con exerciseId
     BE-->>FE: 200 { topic, lesson, quiz, sources }
     FE->>FE: Renderiza lección + fuentes citadas
     U->>FE: Clic "Tomar quiz"
-    FE->>FE: Monta <Quiz/> (lógica 100% local)
+    FE->>FE: Monta <Quiz/> con exerciseId
+    U->>FE: Responde las 3 preguntas
+    FE->>BE: POST /students/me/quiz-results
+    BE->>DB: Recalcular respuestas, actualizar mastery y guardar session
 ```
 
 **Puntos clave:**
 - La petición es **abortable**: si el usuario navega fuera, `AbortController` cancela el `fetch`.
 - Las **fuentes** (páginas del manual) viajan deduplicadas para citación en la UI.
-- El quiz se corrige en el cliente; no se reportan resultados al backend todavía.
+- El backend corrige las respuestas usando el pool persistido; el cliente solo envía `exerciseId` y `selectedIndex`.
+- Las preguntas nuevas quedan disponibles para todos después de validarse y deduplicarse.
 
 ---
 

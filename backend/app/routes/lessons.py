@@ -20,9 +20,7 @@ from app.services.lesson_service import (
     generate_lesson,
 )
 
-from app.services.quiz_service import (
-    generate_quiz,
-)
+from app.services.question_pool_service import ensure_pool, select_quiz
 
 
 router = APIRouter(
@@ -95,13 +93,15 @@ async def create_lesson(
         # 4. GENERAR QUIZ
         # ====================================================
 
-        quiz = await generate_quiz(
+        await ensure_pool(
+            student_id=student.id,
             topic=topic,
             lesson=lesson,
             chunks=chunks,
             config=config,
             student_profile=student_profile,
         )
+        quiz = await select_quiz(student.id, topic)
 
 
         # ====================================================

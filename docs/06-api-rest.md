@@ -84,7 +84,7 @@ Verifica criptográficamente el `id_token` emitido por Google Identity Services 
 
 ### `POST /lessons/generate/{topic}`
 
-Genera **en vivo** la mini-lección y su quiz para un tema, anclados al contenido del manual en MongoDB. Sin cuerpo en el request; todo va en el path.
+Genera la mini-lección en vivo y obtiene el quiz desde el pool compartido del tema. Si el estudiante conoce al menos el 80% del pool, o no hay suficientes preguntas nuevas, el backend genera un lote con RAG, lo valida, deduplica y lo publica para todos. Sin cuerpo en el request; todo va en el path.
 
 **Parámetros de ruta:** `topic` — código del tema (`C1.1`, `C1.2`, `C2.1`, `C2.2`, `C2.3`, …). Debe existir:
 1. en `LESSON_CONFIGS` (configuración pedagógica), y
@@ -116,6 +116,7 @@ curl -X POST http://localhost:8000/lessons/generate/C1.1
   "quiz": {
     "questions": [
       {
+        "exerciseId": "66f…",
         "question": "¿Qué factor aumenta…?",
         "options": ["A", "B", "C", "D"],
         "correctAnswer": 2,
@@ -140,7 +141,11 @@ curl -X POST http://localhost:8000/lessons/generate/C1.1
 | `400` | `topic` sin configuración pedagógica o sin contenido en MongoDB. Mensaje explicativo en `detail`. |
 | `500` | El LLM devolvió JSON inválido/estructura no conforme, o fallo interno (detalle genérico, error logueado en servidor). |
 
-> ⏱️ **Latencia:** involucra dos llamadas al LLM (lección y quiz). Con Ollama local puede tardar decenas de segundos; el frontend aborta la petición si el usuario navega a otra vista.
+> ⏱️ **Latencia:** normalmente involucra una llamada al LLM para la lección. Solo se añade una llamada para generar preguntas cuando el pool está vacío, agotado o supera el umbral de cobertura.
+
+### `POST /students/me/quiz-results`
+
+Guarda un quiz completo. El cuerpo contiene tres respuestas con `exerciseId` y `selectedIndex`. El backend recupera cada ejercicio, recalcula la corrección, actualiza sus métricas y persiste el historial del estudiante. `isCorrect` y `correctIndex` enviados por el cliente no se consideran fuente de verdad.
 
 ---
 

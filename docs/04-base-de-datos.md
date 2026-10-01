@@ -76,7 +76,7 @@ erDiagram
     }
 ```
 
-> Las colecciones `concepts`, `exercises` y `sessions` están **modeladas y con índices creados**, pero aún no expuestas por endpoints: son la base del futuro motor adaptativo (ver `exercise_service.py`).
+> Las colecciones `concepts`, `exercises` y `sessions` forman el banco compartido y el historial del motor adaptativo. Los quizzes nuevos persisten `exercise_id` para seleccionar preguntas por estudiante y calcular cobertura del pool.
 
 ---
 
@@ -93,7 +93,7 @@ Los modelos de referencia viven en [`backend/app/models.py`](../backend/app/mode
 | `name` / `picture` | string | Perfil visible; `picture` opcional. |
 | `created_at` / `last_login` | datetime | Auditoría de ciclo de vida. |
 | `current_unit` | string \| null | Unidad en la que está trabajando. |
-| `mastery` | objeto (`dict[str, MasteryEntry]`) | **Modelo de dominio**: mapa `concept_id → { score, attempts, last_seen }`. Nace vacío. |
+| `mastery` | objeto (`dict[str, MasteryEntry]`) | **Modelo de dominio**: mapa `topic` (`C1.1`, `C1.2`, …) → `{ score, last_score, best_score, attempts, last_seen }`. Nace vacío. |
 
 Escritura: únicamente por `upsert_student_from_google()` (`$set` perfil + `$setOnInsert` identidad).
 
@@ -110,13 +110,16 @@ Escritura: únicamente por `upsert_student_from_google()` (`$set` perfil + `$set
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `concept_id` | ObjectId | Concepto evaluado. |
+| `topic` | string | Pool curricular al que pertenece la pregunta (`C1.1`, `C1.2`, …). |
+| `concept_id` | ObjectId o null | Concepto evaluado, opcional mientras el catálogo de conceptos no esté conectado al quiz. |
 | `type` | enum | `multiple_choice` \| `true_false` \| `open`. |
-| `question` / `options` / `correct_answer` | — | Enunciado, alternativas y solución. |
+| `question` / `options` / `correct_index` | — | Enunciado, alternativas y posición de la solución. |
+| `explanation` | string o null | Explicación pedagógica mostrada tras responder. |
 | `difficulty` | float (0–1) | Dificultad objetivo; selección con tolerancia ±0.15. |
 | `generated_by` | enum | `llm` \| `manual`. |
 | `source_chunk_ids` | ObjectId[] | Trazabilidad al manual. |
-| `reviewed` | bool | **Solo ejercicios revisados se sirven** a estudiantes. |
+| `fingerprint` | string | Huella única para impedir duplicados exactos del pool. |
+| `reviewed` | bool | Las preguntas generadas automáticamente se publican tras validación estructural y deduplicación. |
 | `times_served` / `times_correct` / `times_incorrect` | int | Métricas de uso: reparten desgaste (máx. 20 servidos) y permiten recalibrar `difficulty`. |
 
 ### 4.2.4 `sessions` — historial de interacción
@@ -126,7 +129,8 @@ Escritura: únicamente por `upsert_student_from_google()` (`$set` perfil + `$set
 | `student_id` | ObjectId | Dueño de la sesión (índice simple). |
 | `started_at` | datetime | Inicio. |
 | `messages` | subdocumentos[] | `{ role: agent\|student, content, timestamp }`. |
-| `exercises_attempted` | subdocumentos[] | `{ exercise_id, correct, timestamp }` — fuente para el anti-repetición de `exercise_service`. |
+| `quiz_topic` / `score` | string / float | Tema y resultado del quiz completo. |
+| `answers` | subdocumentos[] | `{ exercise_id, selected_index, correct_index, is_correct, timestamp }` — historial por pregunta. |
 
 ### 4.2.5 `manual_chunks` — corpus RAG (colección activa principal)
 
@@ -155,7 +159,10 @@ Escritura: solo `scripts/ingest_manual.py` (borrado selectivo por `(course, topi
 | `students` | `email` | único | Deduplicación por correo |
 | `students` | `google_sub` | único | Clave de login (upsert) |
 | `exercises` | `(concept_id, difficulty, reviewed)` | compuesto | Query exacta del selector adaptativo |
+| `exercises` | `fingerprint` | único disperso | Deduplicación global de preguntas |
+| `exercises` | `(topic, reviewed, difficulty)` | compuesto | Selección del pool por tema |
 | `sessions` | `student_id` | simple | Historial por estudiante |
+| `sessions` | `answers.exercise_id` | simple | Cobertura y anti-repetición por pregunta |
 | `concepts` | `unit` | simple | Listados por unidad |
 
 ### 4.3.2 Índice vectorial (se crea **manualmente en Atlas**, fuera del código)

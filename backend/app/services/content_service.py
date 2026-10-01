@@ -10,7 +10,7 @@ async def get_topic_chunks(topic: str):
             "topic": topic,
         },
         {
-            "_id": 0,
+            "_id": 1,
             "course": 1,
             "unit": 1,
             "topic": 1,

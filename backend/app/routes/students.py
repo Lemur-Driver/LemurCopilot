@@ -5,7 +5,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.database import client, sessions_collection, students_collection
+from app.database import client, exercises_collection, sessions_collection, students_collection
 from app.dependencies import get_current_student
 from app.models import Student, flatten_mastery, get_mastery_entry
 from app.services.llm_service import generate_text
@@ -20,10 +20,11 @@ class PromptRequest(BaseModel):
     prompt: str
 
 class QuizAnswer(BaseModel):
-    question: str
+    exerciseId: str | None = None
+    question: str = ""
     selectedIndex: int
-    correctIndex: int
-    isCorrect: bool
+    correctIndex: int | None = None
+    isCorrect: bool | None = None
 
 class QuizResultRequest(BaseModel):
     topic: str
@@ -99,10 +100,44 @@ async def get_dashboard(student: Student = Depends(get_current_student)):
 async def save_quiz_result(request: QuizResultRequest, student: Student = Depends(get_current_student)):
     if len(request.answers) != 3:
         raise HTTPException(status_code=400, detail="El quiz debe estar completo antes de guardarse")
+    if any(
+        not answer.exerciseId or not ObjectId.is_valid(answer.exerciseId)
+        for answer in request.answers
+    ):
+        raise HTTPException(status_code=400, detail="Cada respuesta debe identificar un ejercicio válido")
+    if len({answer.exerciseId for answer in request.answers}) != len(request.answers):
+        raise HTTPException(status_code=400, detail="Un quiz no puede repetir ejercicios")
 
     now = datetime.utcnow()
-    total = len(request.answers)
-    score = sum(answer.isCorrect for answer in request.answers) / total if total else 0.0
+    exercise_ids = [ObjectId(answer.exerciseId) for answer in request.answers]
+    exercise_documents = await exercises_collection.find(
+        {"_id": {"$in": exercise_ids}, "topic": request.topic},
+    ).to_list()
+    exercises_by_id = {str(exercise["_id"]): exercise for exercise in exercise_documents}
+    if len(exercises_by_id) != len(set(answer.exerciseId for answer in request.answers)):
+        raise HTTPException(status_code=400, detail="Uno o más ejercicios no pertenecen a este tema")
+
+    answer_records = []
+    for answer in request.answers:
+        exercise = exercises_by_id[answer.exerciseId]
+        correct_index = exercise.get("correct_index")
+        is_correct = answer.selectedIndex == correct_index
+        question = exercise["question"]
+        await exercises_collection.update_one(
+            {"_id": exercise["_id"]},
+            {"$inc": {"times_correct" if is_correct else "times_incorrect": 1}},
+        )
+        answer_records.append({
+            "exercise_id": answer.exerciseId,
+            "question": question,
+            "selected_index": answer.selectedIndex,
+            "correct_index": correct_index,
+            "is_correct": is_correct,
+            "topic": request.topic,
+        })
+
+    total = len(answer_records)
+    score = sum(answer["is_correct"] for answer in answer_records) / total if total else 0.0
     current = get_mastery_entry(student.mastery, request.topic)
     attempts = (current.attempts if current else 0) + 1
     previous_best = (current.best_score if current and current.best_score is not None else current.score if current else 0.0)
@@ -120,9 +155,9 @@ async def save_quiz_result(request: QuizResultRequest, student: Student = Depend
             "$addToSet": {
                 f"mastery.{request.topic}.failed_questions": {
                     "$each": [
-                        answer.question
-                        for answer in request.answers
-                        if not answer.isCorrect
+                        answer["question"]
+                        for answer in answer_records
+                        if not answer["is_correct"]
                     ]
                 },
             },
@@ -131,7 +166,7 @@ async def save_quiz_result(request: QuizResultRequest, student: Student = Depend
     await sessions_collection.insert_one({
         "student_id": ObjectId(student.id), "started_at": now,
         "quiz_topic": request.topic, "score": score,
-        "answers": [answer.model_dump() for answer in request.answers],
+        "answers": answer_records,
     })
     return {"topic": request.topic, "score": score, "attempts": attempts}
 

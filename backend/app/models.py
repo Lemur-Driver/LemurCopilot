@@ -77,14 +77,18 @@ class Concept(MongoBaseModel):
 # ---------- exercises ----------
 
 class Exercise(MongoBaseModel):
-    concept_id: PyObjectId
+    topic: str | None = None
+    concept_id: PyObjectId | None = None
     type: Literal["multiple_choice", "true_false", "open"] = "multiple_choice"
     question: str
     options: list[str] = Field(default_factory=list)
-    correct_answer: str
+    correct_answer: str | None = None
+    correct_index: int | None = None
+    explanation: str | None = None
     difficulty: float = 0.5
     generated_by: Literal["llm", "manual"] = "llm"
     source_chunk_ids: list[PyObjectId] = Field(default_factory=list) 
+    fingerprint: str | None = None
     reviewed: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     times_served: int = 0
@@ -101,14 +105,26 @@ class SessionMessage(BaseModel):
 
 
 class ExerciseAttempt(BaseModel):
-    exercise_id: PyObjectId
+    exercise_id: PyObjectId | None = None
     correct: bool
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class QuizAnswerRecord(BaseModel):
+    exercise_id: PyObjectId | None = None
+    question: str
+    selected_index: int
+    correct_index: int | None = None
+    is_correct: bool
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Session(MongoBaseModel):
     student_id: PyObjectId
     started_at: datetime = Field(default_factory=datetime.utcnow)
+    quiz_topic: str | None = None
+    score: float | None = None
+    answers: list[QuizAnswerRecord] = Field(default_factory=list)
     messages: list[SessionMessage] = Field(default_factory=list)
     exercises_attempted: list[ExerciseAttempt] = Field(default_factory=list)
 
