@@ -10,6 +10,7 @@ from app.dependencies import get_current_student
 from app.models import Student, flatten_mastery, get_mastery_entry
 from app.services.llm_service import generate_text
 from app.prompts.lesson_prompts import LESSON_CONFIGS
+from app.services.progress_service import build_course_progress
 
 router = APIRouter(
     prefix="/students",
@@ -34,9 +35,24 @@ class QuizResultRequest(BaseModel):
 async def get_me(student: Student = Depends(get_current_student)):
     return student
 
+
 @router.get("/me/mastery")
 async def get_mastery(student: Student = Depends(get_current_student)):
     return {"mastery": flatten_mastery(student.mastery)}
+
+
+@router.get("/me/course-progress")
+async def get_course_progress(
+    student: Student = Depends(
+        get_current_student
+    ),
+):
+    return {
+        "units": build_course_progress(
+            student
+        )
+    }
+
 
 @router.get("/me/dashboard")
 async def get_dashboard(student: Student = Depends(get_current_student)):
@@ -95,6 +111,7 @@ async def get_dashboard(student: Student = Depends(get_current_student)):
         "longest_streak_days": longest_streak_days,
         "xp": completed_lessons * 40,
     }
+
 
 @router.post("/me/quiz-results")
 async def save_quiz_result(request: QuizResultRequest, student: Student = Depends(get_current_student)):
@@ -170,11 +187,13 @@ async def save_quiz_result(request: QuizResultRequest, student: Student = Depend
     })
     return {"topic": request.topic, "score": score, "attempts": attempts}
 
+
 @router.get("/mongo-test")
 async def mongo_test():
     await client.admin.command("ping")
 
     return {"mongodb": "connected"}
+
 
 @router.get("/llm-test")
 async def llm_test():

@@ -4,26 +4,55 @@ import { course } from '../data/course'
 import type { DashboardSummary, MasteryMap } from '../data/mastery'
 import lemurImage from '../assets/icon.png'
 import { useAuth } from '../auth/useAuth'
+import type { CourseProgressResponse, UnitProgress} from '../data/mastery'
+
+
 
 function Home() {
   const { user, authFetch } = useAuth()
   const [mastery, setMastery] = useState<MasteryMap>({})
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(null)
+  const [ courseProgress, setCourseProgress] = useState<UnitProgress[]>([])
 
   useEffect(() => {
     let active = true
     void Promise.all([
       authFetch('/students/me/mastery'),
       authFetch('/students/me/dashboard'),
+      authFetch('/students/me/course-progress'),
     ])
-      .then(async ([masteryResponse, dashboardResponse]) => {
+      .then(async ([
+        masteryResponse,
+        dashboardResponse,
+        progressResponse,
+      ]) => {
+
         if (!active) return
+
         if (masteryResponse.ok) {
-          const data = await masteryResponse.json() as { mastery?: MasteryMap }
-          setMastery(data.mastery ?? {})
+          const data =
+            await masteryResponse.json() as {
+              mastery?: MasteryMap
+            }
+
+          setMastery(
+            data.mastery ?? {}
+          )
         }
+
         if (dashboardResponse.ok) {
-          setDashboard(await dashboardResponse.json() as DashboardSummary)
+          setDashboard(
+            await dashboardResponse.json() as DashboardSummary
+          )
+        }
+
+        if (progressResponse.ok) {
+          const data =
+            await progressResponse.json() as CourseProgressResponse
+
+          setCourseProgress(
+            data.units ?? []
+          )
         }
       })
       .catch(() => undefined)
@@ -246,13 +275,27 @@ function Home() {
         </div>
 
 
-        {course.map((unit) => (
+      {course.map((unit) => {
+
+        const progress =
+          courseProgress.find(
+            (item) =>
+              item.unit_id === unit.id
+          )
+
+        return (
           <LearningPath
             key={unit.id}
             unit={unit}
-          mastery={mastery}
+            mastery={mastery}
+            locked={
+              progress
+                ? !progress.unlocked
+                : unit.id !== 'unit-1'
+            }
           />
-        ))}
+        )
+      })}
 
       </section>
 

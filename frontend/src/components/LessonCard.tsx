@@ -6,34 +6,50 @@ interface LessonCardProps {
   lesson: Lesson
   number: number
   mastery?: MasteryEntry
+  locked: boolean
 }
 
 function LessonCard({
   lesson,
   number,
   mastery,
+  locked,
 }: LessonCardProps) {
   const score = mastery?.best_score ?? 0
   const completed = score >= 0.6
   const started = Boolean(mastery?.attempts)
-  const actionLabel = completed ? 'Repasar' : started ? 'Continuar' : 'Aprender'
+  const actionLabel =
+  locked
+    ? 'Bloqueada'
+    : completed
+      ? 'Repasar'
+      : started
+        ? 'Continuar'
+        : 'Aprender'
 
   const navigate = useNavigate()
 
   return (
-    <button
-      className="lesson-card"
-      onClick={() =>
-        navigate(
-          `/lesson/${lesson.id}`
-        )
-      }
-    >
+      <button
+        className={
+          locked
+            ? 'lesson-card lesson-card-locked'
+            : 'lesson-card'
+        }
+        disabled={locked}
+        onClick={() => {
+          if (locked) return
+
+          navigate(
+            `/lesson/${lesson.id}`
+          )
+        }}
+      >
 
       <div className="lesson-node">
 
         <span className="lesson-node-number">
-          {number}
+          {locked ? '🔒' : number}
         </span>
 
       </div>

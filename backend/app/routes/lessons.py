@@ -7,6 +7,7 @@ from fastapi import (
 from app.dependencies import get_current_student
 from app.models import Student
 from app.services.profile_service import build_student_profile
+from app.services.progress_service import is_topic_unlocked
 
 from app.prompts.lesson_prompts import (
     LESSON_CONFIGS,
@@ -34,8 +35,23 @@ router = APIRouter(
 )
 async def create_lesson(
     topic: str,
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(
+        get_current_student
+    ),
 ):
+
+    if not is_topic_unlocked(
+        student,
+        topic,
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Debes completar la unidad "
+                "anterior antes de acceder "
+                "a esta clase."
+            ),
+        )
 
     try:
 

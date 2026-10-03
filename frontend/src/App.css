@@ -2706,3 +2706,86 @@
 
   font-weight: 900;
 }
+
+/* =========================================
+   LOCKED UNITS
+========================================= */
+
+.unit-section-locked {
+  background: #f5f6f3;
+  border-color: #d8ddd5;
+  border-bottom-color: #c7cdc3;
+}
+
+.unit-section-locked .unit-label {
+  background: #ecefeb;
+  color: #879087;
+}
+
+.unit-section-locked .unit-progress-fill {
+  background: #b9c0b7;
+}
+
+
+/* =========================================
+   LOCKED LESSON CARD
+========================================= */
+
+.lesson-card-locked {
+  background: #f5f6f3;
+
+  border-color: #d8ddd5;
+  border-bottom-color: #c7cdc3;
+
+  color: #899188;
+
+  cursor: not-allowed;
+
+  opacity: 0.78;
+}
+
+.lesson-card-locked:hover {
+  transform: none;
+
+  border-color: #d8ddd5;
+  border-bottom-color: #c7cdc3;
+
+  background: #f5f6f3;
+}
+
+.lesson-card-locked:active {
+  transform: none;
+  border-bottom-width: 5px;
+}
+
+.lesson-card-locked .lesson-node {
+  border-color: #aeb6ac;
+  border-bottom-color: #969f94;
+
+  background: #c4cbc1;
+
+  color: white;
+}
+
+.lesson-card-locked .lesson-code,
+.lesson-card-locked .lesson-action {
+  color: #899188;
+}
+
+.lesson-card-locked .lesson-info h3 {
+  color: #777f77;
+}
+
+.lesson-card-locked .lesson-info p,
+.lesson-card-locked .lesson-duration {
+  color: #9ca39b;
+}
+
+.lesson-card-locked .lesson-arrow {
+  border-color: #d4d9d2;
+  border-bottom-color: #c5cbc2;
+
+  background: #ecefeb;
+
+  color: #858d84;
+}

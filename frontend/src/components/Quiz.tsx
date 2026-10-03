@@ -48,7 +48,7 @@ function Quiz({
   const score = answers.length
     ? answers.filter((answer) => answer.isCorrect).length / answers.length
     : 0
-  const passed = score === 1
+  const passed = score >= 1
 
 
   const question =
