@@ -34,7 +34,7 @@ RESULTS_DIR = (
 
 OUTPUT_PATH = (
     RESULTS_DIR
-    / "prompt_v3.csv"
+    / "prompt_v4.csv"
 )
 
 REQUEST_TIMEOUT = 180

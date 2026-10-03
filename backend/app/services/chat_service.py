@@ -345,43 +345,43 @@ def build_chat_prompt(
 
 
     return f"""
-    {CHAT_SYSTEM_PROMPT}
+{CHAT_SYSTEM_PROMPT}
 
 
-    ============================================================
-    CONTEXTO DEL MANUAL
-    ============================================================
+============================================================
+CONTEXTO DEL MANUAL
+============================================================
 
-    {rag_context}
-
-
-    ============================================================
-    HISTORIAL
-    ============================================================
-
-    {history_text}
+{rag_context}
 
 
-    ============================================================
-    PREGUNTA
-    ============================================================
+============================================================
+HISTORIAL
+============================================================
 
-    {current_message}
+{history_text}
 
 
-    ============================================================
-    INSTRUCCIÓN FINAL
-    ============================================================
+============================================================
+PREGUNTA DEL ESTUDIANTE
+============================================================
 
-    Responde directamente.
+{current_message}
 
-    Integra todos los fragmentos relevantes.
 
-    No agregues información externa.
+============================================================
+INSTRUCCIÓN FINAL
+============================================================
 
-    Si una parte no puede responderse con seguridad, indícalo
-    sin descartar la información que sí está respaldada.
-    """
+Busca dentro del contexto la evidencia que responda de forma
+más directa a la pregunta.
+
+Ignora los fragmentos tangenciales aunque estén relacionados
+con el tema.
+
+Responde únicamente lo solicitado, utilizando la menor cantidad
+de información necesaria para dar una respuesta completa y correcta.
+"""
 
 async def prepare_chat_response(
     message: str,

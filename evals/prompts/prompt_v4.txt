@@ -296,3 +296,46 @@ o:
   "classification": "OUT_OF_DOMAIN"
 }
 """
+
+
+
+
+
+ return f"""
+{CHAT_SYSTEM_PROMPT}
+
+
+============================================================
+CONTEXTO DEL MANUAL
+============================================================
+
+{rag_context}
+
+
+============================================================
+HISTORIAL
+============================================================
+
+{history_text}
+
+
+============================================================
+PREGUNTA DEL ESTUDIANTE
+============================================================
+
+{current_message}
+
+
+============================================================
+INSTRUCCIÓN FINAL
+============================================================
+
+Busca dentro del contexto la evidencia que responda de forma
+más directa a la pregunta.
+
+Ignora los fragmentos tangenciales aunque estén relacionados
+con el tema.
+
+Responde únicamente lo solicitado, utilizando la menor cantidad
+de información necesaria para dar una respuesta completa y correcta.
+"""
