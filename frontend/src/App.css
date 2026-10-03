@@ -2789,3 +2789,35 @@
 
   color: #858d84;
 }
+
+.explain-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 7px;
+
+  padding: 10px 14px 8px;
+
+  border: 2px solid #6f92d7;
+  border-bottom: 5px solid #5277bd;
+
+  border-radius: 11px;
+
+  background: #edf3ff;
+
+  color: #365f9f;
+
+  font-weight: 900;
+
+  cursor: pointer;
+}
+
+.explain-button:hover {
+  background: #e4edff;
+}
+
+.explain-button:active {
+  transform: translateY(3px);
+  border-bottom-width: 2px;
+}

@@ -21,13 +21,16 @@ interface QuizProps {
   onComplete?: (answers: QuizResultAnswer[]) => Promise<void> | void
   onRetry?: () => void
   onNextLesson?: () => void
+  onExplain?: (question: QuizQuestion,selectedIndex: number) => void
 }
+
 
 function Quiz({
   questions,
   onComplete,
   onRetry,
   onNextLesson,
+  onExplain,
 }: QuizProps) {
 
   const [
@@ -243,6 +246,26 @@ function Quiz({
             <p className="quiz-explanation">
               {question.explanation}
             </p>
+          )}
+
+          {!isCorrect && (
+            <button
+              type="button"
+              className="explain-button"
+              onClick={() => {
+
+                if (selectedAnswer === null) {
+                  return
+                }
+
+                onExplain?.(
+                  question,
+                  selectedAnswer,
+                )
+              }}
+            >
+              💬 Explicar
+            </button>
           )}
 
 

@@ -13,6 +13,7 @@ import Login from './pages/Login'
 import ChatWidget from './components/ChatWidget'
 import { AuthProvider } from './auth/AuthContext'
 import { useAuth } from './auth/useAuth'
+import { ChatProvider } from './chat/ChatContext'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token, loading } = useAuth()
@@ -23,30 +24,32 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <ChatProvider>
+        <BrowserRouter>
 
-      <Routes>
+        <Routes>
 
-        <Route
-          path="/login"
-          element={<Login />}
-        />
+          <Route
+            path="/login"
+            element={<Login />}
+          />
 
-        <Route
-          path="/"
-          element={<ProtectedRoute><Home /></ProtectedRoute>}
-        />
+          <Route
+            path="/"
+            element={<ProtectedRoute><Home /></ProtectedRoute>}
+          />
 
-        <Route
-          path="/lesson/:lessonId"
-          element={<ProtectedRoute><Lesson /></ProtectedRoute>}
-        />
+          <Route
+            path="/lesson/:lessonId"
+            element={<ProtectedRoute><Lesson /></ProtectedRoute>}
+          />
 
-      </Routes>
+        </Routes>
 
-      <ChatWidget />
+        <ChatWidget />
 
-    </BrowserRouter>
+        </BrowserRouter>
+      </ChatProvider>
     </AuthProvider>
   )
 }

@@ -1,7 +1,10 @@
 import {
+  useEffect,
   useState,
   type SyntheticEvent,
 } from 'react'
+
+import { useChat } from '../chat/useChat'
 
 
 // ============================================================
@@ -53,10 +56,35 @@ const API_URL =
 
 function ChatWidget() {
 
-  const [
+  const {
     isOpen,
-    setIsOpen,
-  ] = useState(false)
+    closeChat,
+    toggleChat,
+    pendingExplanation,
+    consumeExplanation,
+  } = useChat()
+
+  useEffect(() => {
+
+    if (!pendingExplanation) {
+      return
+    }
+
+
+    console.log(
+      'Explicación solicitada:',
+      pendingExplanation
+    )
+
+
+    consumeExplanation()
+
+  }, [
+    pendingExplanation,
+    consumeExplanation,
+  ])
+
+  
 
 
   const [
@@ -655,9 +683,7 @@ function ChatWidget() {
             <button
               className="chat-close-button"
 
-              onClick={() =>
-                setIsOpen(false)
-              }
+              onClick={closeChat}
 
               aria-label="Cerrar chat"
             >
@@ -901,12 +927,7 @@ function ChatWidget() {
           }`
         }
 
-        onClick={() =>
-          setIsOpen(
-            (current) =>
-              !current
-          )
-        }
+        onClick={toggleChat}
 
         aria-label={
           isOpen

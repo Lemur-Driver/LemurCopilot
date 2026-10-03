@@ -16,7 +16,7 @@ import LemurLoader from '../components/LemurLoader'
 import { course } from '../data/course'
 import { useAuth } from '../auth/useAuth'
 import type { QuizResultAnswer } from '../components/Quiz'
-
+import { useChat } from '../chat/useChat'
 
 // ============================================================
 // TYPES
@@ -65,7 +65,7 @@ function Lesson() {
 
   const navigate = useNavigate()
   const { authFetch } = useAuth()
-
+  const {explainQuizMistake} = useChat()
 
   // ----------------------------------------------------------
   // Información estática de course.ts
@@ -489,6 +489,32 @@ function Lesson() {
         <Quiz
           questions={generatedContent.quiz.questions}
           key={quizAttempt}
+          onExplain={(
+              question,
+              selectedIndex,
+            ) => {
+
+              if (
+                !lessonId ||
+                !question.exerciseId
+              ) {
+                return
+              }
+
+
+              explainQuizMistake({
+                topic: lessonId,
+
+                exerciseId:
+                  question.exerciseId,
+
+                selectedIndex,
+
+                lesson:
+                  generatedContent.lesson,
+              })
+            }}
+
           onRetry={() => {
             setQuizSaved(false)
             setQuizAttempt((attempt) => attempt + 1)
