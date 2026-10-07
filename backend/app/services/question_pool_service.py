@@ -1,6 +1,7 @@
-import hashlib
 import asyncio
+import hashlib
 import re
+from datetime import datetime
 from collections.abc import Iterable
 from difflib import SequenceMatcher
 from typing import Any
@@ -165,7 +166,7 @@ async def ensure_pool(
             await _generate_batch(topic, lesson, chunks, config, student_profile)
 
 
-async def select_quiz(student_id: str, topic: str) -> dict[str, list[dict[str, Any]]]:
+async def select_quiz(student_id: str, topic: str) -> dict[str, Any]:
     pool = await _pool_documents(topic)
     answered = await _answered_ids(student_id, topic)
     candidates = [item for item in pool if str(item["_id"]) not in answered]
@@ -184,14 +185,22 @@ async def select_quiz(student_id: str, topic: str) -> dict[str, list[dict[str, A
             {"$inc": {"times_served": 1}},
         )
 
+    assignment = await sessions_collection.insert_one({
+        "student_id": ObjectId(student_id),
+        "started_at": datetime.utcnow(),
+        "quiz_topic": topic,
+        "quiz_exercise_ids": [item["_id"] for item in selected],
+        "quiz_status": "assigned",
+        "answers": [],
+    })
+
     return {
+        "sessionId": str(assignment.inserted_id),
         "questions": [
             {
                 "exerciseId": str(item["_id"]),
                 "question": item["question"],
                 "options": item["options"],
-                "correctAnswer": item["correct_index"],
-                "explanation": item.get("explanation"),
             }
             for item in selected
         ]

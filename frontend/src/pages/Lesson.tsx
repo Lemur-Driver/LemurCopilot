@@ -41,16 +41,26 @@ interface LessonSource {
   source: string
 }
 
-interface GenerateLessonResponse {
+interface QuizSubmissionResponse {
+  score: number
+  passed: boolean
+}
+
+interface QuizAnswerResponse extends QuizResultAnswer {
+  correctIndex: number
+  isCorrect: boolean
+  explanation?: string
+}
+
+interface GeneratedLessonResponse {
   topic: string
-
   lesson: GeneratedLesson
-
-  quiz: {
-    questions: QuizQuestion[]
-  }
-
   sources: LessonSource[]
+}
+
+interface QuizAssignment {
+  sessionId: string
+  questions: QuizQuestion[]
 }
 
 
@@ -88,7 +98,7 @@ function Lesson() {
   const [
     generatedContent,
     setGeneratedContent,
-  ] = useState<GenerateLessonResponse | null>(
+  ] = useState<GeneratedLessonResponse | null>(
     null
   )
 
@@ -112,6 +122,7 @@ function Lesson() {
   const [quizAttempt, setQuizAttempt] = useState(0)
 
   const [quizSaved, setQuizSaved] = useState(false)
+  const [quizData, setQuizData] = useState<QuizAssignment | null>(null)
 
 
   // ----------------------------------------------------------
@@ -133,6 +144,7 @@ function Lesson() {
     const loadLesson = async () => {
       try {
         setQuizSaved(false)
+        setQuizData(null)
         setLoading(true)
         setError(null)
         setGeneratedContent(null)
@@ -158,9 +170,7 @@ function Lesson() {
         }
 
 
-        const data:
-          GenerateLessonResponse =
-          await response.json()
+        const data: GeneratedLessonResponse = await response.json()
 
 
         if (!active) {
@@ -168,9 +178,7 @@ function Lesson() {
         }
 
 
-        setGeneratedContent(
-          data
-        )
+        setGeneratedContent(data)
 
       } catch (error) {
 
@@ -486,8 +494,8 @@ function Lesson() {
         </header>
 
 
-        <Quiz
-          questions={generatedContent.quiz.questions}
+        {quizData && <Quiz
+          questions={quizData.questions}
           key={quizAttempt}
           onExplain={(
               question,
@@ -515,7 +523,15 @@ function Lesson() {
               })
             }}
 
-          onRetry={() => {
+          onRetry={async () => {
+            if (!lessonId) return
+            const response = await authFetch(`/lessons/${encodeURIComponent(lessonId)}/quiz`, { method: 'POST' })
+            if (!response.ok) throw new Error('No se pudo preparar un nuevo quiz')
+            const data = await response.json() as { quiz: QuizAssignment }
+            if (!data.quiz.sessionId || data.quiz.questions.length !== 3) {
+              throw new Error('El servidor no asignó un quiz completo')
+            }
+            setQuizData(data.quiz)
             setQuizSaved(false)
             setQuizAttempt((attempt) => attempt + 1)
           }}
@@ -529,18 +545,35 @@ function Lesson() {
               navigate('/')
             }
           }}
-          onComplete={async (answers: QuizResultAnswer[]) => {
-            const response = await authFetch('/students/me/quiz-results', {
+          onAnswer={async (answer: QuizResultAnswer) => {
+            if (!quizData) {
+              throw new Error('No hay un quiz asignado')
+            }
+            const response = await authFetch('/students/me/quiz-answer', {
               method: 'POST',
-              body: JSON.stringify({ topic: lessonId, answers }),
+              body: JSON.stringify({ sessionId: quizData.sessionId, ...answer }),
             })
             if (!response.ok) {
-              throw new Error('No se pudo guardar el resultado del quiz')
+              throw new Error('No se pudo guardar la respuesta')
+            }
+            return response.json() as Promise<QuizAnswerResponse>
+          }}
+          onComplete={async () => {
+            if (!quizData) {
+              throw new Error('No hay un quiz asignado para finalizar')
+            }
+            const response = await authFetch('/students/me/quiz-results', {
+              method: 'POST',
+              body: JSON.stringify({ sessionId: quizData.sessionId }),
+            })
+            if (!response.ok) {
+              throw new Error('No se pudo finalizar el quiz')
             }
 
             setQuizSaved(true)
+            return response.json() as Promise<QuizSubmissionResponse>
           }}
-        />
+        />}
 
       </main>
     )
@@ -757,13 +790,26 @@ function Lesson() {
 
           <button
             className="start-quiz-button"
-            onClick={() => {
-              window.scrollTo({
-                top: 0,
-                behavior: 'smooth',
-              })
-
-              setShowQuiz(true)
+            onClick={async () => {
+              if (!lessonId) return
+              setLoading(true)
+              setError(null)
+              try {
+                const response = await authFetch(`/lessons/${encodeURIComponent(lessonId)}/quiz`, { method: 'POST' })
+                if (!response.ok) throw new Error('No se pudo preparar el quiz')
+                const data = await response.json() as { quiz: QuizAssignment }
+                if (!data.quiz.sessionId || data.quiz.questions.length !== 3) {
+                  throw new Error('El servidor no asignó un quiz completo')
+                }
+                setQuizData(data.quiz)
+                setQuizSaved(false)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+                setShowQuiz(true)
+              } catch (error) {
+                setError(error instanceof Error ? error.message : 'No se pudo preparar el quiz.')
+              } finally {
+                setLoading(false)
+              }
             }}
           >
             Comenzar quiz →

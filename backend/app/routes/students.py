@@ -3,14 +3,14 @@ from zoneinfo import ZoneInfo
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.database import client, exercises_collection, sessions_collection, students_collection
 from app.dependencies import get_current_student
 from app.models import Student, flatten_mastery, get_mastery_entry
 from app.services.llm_service import generate_text
 from app.prompts.lesson_prompts import LESSON_CONFIGS
-from app.services.progress_service import build_course_progress
+from app.services.progress_service import build_course_progress, PASSING_SCORE
 
 router = APIRouter(
     prefix="/students",
@@ -20,16 +20,17 @@ router = APIRouter(
 class PromptRequest(BaseModel):
     prompt: str
 
-class QuizAnswer(BaseModel):
-    exerciseId: str | None = None
-    question: str = ""
-    selectedIndex: int
-    correctIndex: int | None = None
-    isCorrect: bool | None = None
+class QuizAnswerRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sessionId: str
+    exerciseId: str
+    selectedIndex: int = Field(ge=0, le=3)
 
 class QuizResultRequest(BaseModel):
-    topic: str
-    answers: list[QuizAnswer] = Field(default_factory=list)
+    model_config = ConfigDict(extra="forbid")
+
+    sessionId: str
 
 @router.get("/me", response_model=Student)
 async def get_me(student: Student = Depends(get_current_student)):
@@ -60,7 +61,7 @@ async def get_dashboard(student: Student = Depends(get_current_student)):
     completed_lessons = sum(
         1
         for lesson_id in lesson_ids
-        if (get_mastery_entry(student.mastery, lesson_id).best_score if get_mastery_entry(student.mastery, lesson_id) else 0.0) >= 0.6
+        if (get_mastery_entry(student.mastery, lesson_id).best_score if get_mastery_entry(student.mastery, lesson_id) else 0.0) >= PASSING_SCORE
     )
     attempted_lessons = sum(
         1
@@ -113,79 +114,146 @@ async def get_dashboard(student: Student = Depends(get_current_student)):
     }
 
 
+@router.post("/me/quiz-answer")
+async def submit_quiz_answer(request: QuizAnswerRequest, student: Student = Depends(get_current_student)):
+    if not ObjectId.is_valid(request.sessionId) or not ObjectId.is_valid(request.exerciseId):
+        raise HTTPException(status_code=400, detail="La sesion o la pregunta no son validas")
+
+    session_id = ObjectId(request.sessionId)
+    assignment = await sessions_collection.find_one(
+        {
+            "_id": session_id,
+            "student_id": ObjectId(student.id),
+            "quiz_status": "assigned",
+        }
+    )
+    if not assignment:
+        raise HTTPException(status_code=404, detail="No existe un quiz activo para esta sesion")
+
+    assigned_ids = [str(exercise_id) for exercise_id in assignment.get("quiz_exercise_ids", [])]
+    if request.exerciseId not in assigned_ids:
+        raise HTTPException(status_code=400, detail="La pregunta no pertenece a este quiz")
+
+    exercise = await exercises_collection.find_one({
+        "_id": ObjectId(request.exerciseId),
+        "topic": assignment["quiz_topic"],
+    })
+    if not exercise:
+        raise HTTPException(status_code=404, detail="La pregunta ya no esta disponible")
+    if request.selectedIndex >= len(exercise.get("options", [])):
+        raise HTTPException(status_code=400, detail="La opcion seleccionada no es valida")
+
+    correct_index = exercise.get("correct_index")
+    answer_record = {
+        "exercise_id": request.exerciseId,
+        "question": exercise["question"],
+        "selected_index": request.selectedIndex,
+        "correct_index": correct_index,
+        "is_correct": request.selectedIndex == correct_index,
+        "topic": assignment["quiz_topic"],
+    }
+    existing_answer = next(
+        (
+            answer
+            for answer in assignment.get("answers", [])
+            if answer.get("exercise_id") == request.exerciseId
+        ),
+        None,
+    )
+    if existing_answer:
+        if existing_answer.get("selected_index") != request.selectedIndex:
+            raise HTTPException(status_code=409, detail="La respuesta a esta pregunta ya fue registrada")
+    else:
+        result = await sessions_collection.update_one(
+            {
+                "_id": session_id,
+                "student_id": ObjectId(student.id),
+                "quiz_status": "assigned",
+                "answers.exercise_id": {"$ne": request.exerciseId},
+            },
+            {"$push": {"answers": answer_record}},
+        )
+        if result.modified_count != 1:
+            raise HTTPException(status_code=409, detail="No se pudo registrar la respuesta")
+        await exercises_collection.update_one(
+            {"_id": ObjectId(request.exerciseId)},
+            {"$inc": {"times_correct" if answer_record["is_correct"] else "times_incorrect": 1}},
+        )
+
+    return {
+        "exerciseId": request.exerciseId,
+        "selectedIndex": request.selectedIndex,
+        "correctIndex": correct_index,
+        "isCorrect": answer_record["is_correct"],
+        "explanation": exercise.get("explanation"),
+    }
+
+
 @router.post("/me/quiz-results")
 async def save_quiz_result(request: QuizResultRequest, student: Student = Depends(get_current_student)):
-    if len(request.answers) != 3:
-        raise HTTPException(status_code=400, detail="El quiz debe estar completo antes de guardarse")
-    if any(
-        not answer.exerciseId or not ObjectId.is_valid(answer.exerciseId)
-        for answer in request.answers
-    ):
-        raise HTTPException(status_code=400, detail="Cada respuesta debe identificar un ejercicio válido")
-    if len({answer.exerciseId for answer in request.answers}) != len(request.answers):
-        raise HTTPException(status_code=400, detail="Un quiz no puede repetir ejercicios")
+    if not ObjectId.is_valid(request.sessionId):
+        raise HTTPException(status_code=400, detail="La sesion del quiz no es valida")
+
+    session_id = ObjectId(request.sessionId)
+    assignment = await sessions_collection.find_one(
+        {
+            "_id": session_id,
+            "student_id": ObjectId(student.id),
+            "quiz_status": "assigned",
+        }
+    )
+    if not assignment:
+        raise HTTPException(status_code=404, detail="No existe un quiz activo para esta sesion")
+
+    assigned_ids = [str(exercise_id) for exercise_id in assignment.get("quiz_exercise_ids", [])]
+    answers = assignment.get("answers", [])
+    if len(assigned_ids) != 3 or {answer.get("exercise_id") for answer in answers} != set(assigned_ids):
+        raise HTTPException(status_code=400, detail="Debes responder las tres preguntas antes de finalizar")
 
     now = datetime.utcnow()
-    exercise_ids = [ObjectId(answer.exerciseId) for answer in request.answers]
-    exercise_documents = await exercises_collection.find(
-        {"_id": {"$in": exercise_ids}, "topic": request.topic},
-    ).to_list()
-    exercises_by_id = {str(exercise["_id"]): exercise for exercise in exercise_documents}
-    if len(exercises_by_id) != len(set(answer.exerciseId for answer in request.answers)):
-        raise HTTPException(status_code=400, detail="Uno o más ejercicios no pertenecen a este tema")
-
-    answer_records = []
-    for answer in request.answers:
-        exercise = exercises_by_id[answer.exerciseId]
-        correct_index = exercise.get("correct_index")
-        is_correct = answer.selectedIndex == correct_index
-        question = exercise["question"]
-        await exercises_collection.update_one(
-            {"_id": exercise["_id"]},
-            {"$inc": {"times_correct" if is_correct else "times_incorrect": 1}},
-        )
-        answer_records.append({
-            "exercise_id": answer.exerciseId,
-            "question": question,
-            "selected_index": answer.selectedIndex,
-            "correct_index": correct_index,
-            "is_correct": is_correct,
-            "topic": request.topic,
-        })
-
-    total = len(answer_records)
-    score = sum(answer["is_correct"] for answer in answer_records) / total if total else 0.0
-    current = get_mastery_entry(student.mastery, request.topic)
+    score = sum(answer["is_correct"] for answer in answers) / len(answers)
+    topic = assignment["quiz_topic"]
+    current = get_mastery_entry(student.mastery, topic)
     attempts = (current.attempts if current else 0) + 1
     previous_best = (current.best_score if current and current.best_score is not None else current.score if current else 0.0)
     best_score = max(score, previous_best)
+
+    result = await sessions_collection.update_one(
+        {"_id": session_id, "student_id": ObjectId(student.id), "quiz_status": "assigned"},
+        {"$set": {
+            "quiz_status": "completed",
+            "completed_at": now,
+            "score": score,
+        }, "$unset": {"quiz_exercise_ids": ""}},
+    )
+    if result.modified_count != 1:
+        raise HTTPException(status_code=409, detail="Este quiz ya fue enviado")
+
     await students_collection.update_one(
         {"_id": ObjectId(student.id)},
         {
             "$set": {
-                f"mastery.{request.topic}.score": score,
-                f"mastery.{request.topic}.last_score": score,
-                f"mastery.{request.topic}.best_score": best_score,
-                f"mastery.{request.topic}.last_seen": now,
+                f"mastery.{topic}.score": score,
+                f"mastery.{topic}.last_score": score,
+                f"mastery.{topic}.best_score": best_score,
+                f"mastery.{topic}.last_seen": now,
             },
-            "$inc": {f"mastery.{request.topic}.attempts": 1},
+            "$inc": {f"mastery.{topic}.attempts": 1},
             "$addToSet": {
-                f"mastery.{request.topic}.failed_questions": {
-                    "$each": [
-                        answer["question"]
-                        for answer in answer_records
-                        if not answer["is_correct"]
-                    ]
+                f"mastery.{topic}.failed_questions": {
+                    "$each": [answer["question"] for answer in answers if not answer["is_correct"]],
                 },
             },
         },
     )
-    await sessions_collection.insert_one({
-        "student_id": ObjectId(student.id), "started_at": now,
-        "quiz_topic": request.topic, "score": score,
-        "answers": answer_records,
-    })
-    return {"topic": request.topic, "score": score, "attempts": attempts}
+    return {
+        "sessionId": request.sessionId,
+        "topic": topic,
+        "score": score,
+        "passed": score >= PASSING_SCORE,
+        "passingScore": PASSING_SCORE,
+        "attempts": attempts,
+    }
 
 
 @router.get("/mongo-test")

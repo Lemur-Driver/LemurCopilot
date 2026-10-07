@@ -1,25 +1,32 @@
 import { useState } from 'react'
 
 export interface QuizQuestion {
-  exerciseId?: string
+  exerciseId: string
   question: string
   options: string[]
-  correctAnswer: number
-  explanation?: string
 }
 
 export interface QuizResultAnswer {
-  exerciseId?: string
-  question: string
+  exerciseId: string
   selectedIndex: number
+}
+
+export interface QuizAnswerResult extends QuizResultAnswer {
   correctIndex: number
   isCorrect: boolean
+  explanation?: string
+}
+
+export interface QuizSubmissionResult {
+  score: number
+  passed: boolean
 }
 
 interface QuizProps {
   questions: QuizQuestion[]
-  onComplete?: (answers: QuizResultAnswer[]) => Promise<void> | void
-  onRetry?: () => void
+  onAnswer: (answer: QuizResultAnswer) => Promise<QuizAnswerResult>
+  onComplete: () => Promise<QuizSubmissionResult>
+  onRetry?: () => Promise<void> | void
   onNextLesson?: () => void
   onExplain?: (question: QuizQuestion,selectedIndex: number) => void
 }
@@ -27,6 +34,7 @@ interface QuizProps {
 
 function Quiz({
   questions,
+  onAnswer,
   onComplete,
   onRetry,
   onNextLesson,
@@ -43,61 +51,103 @@ function Quiz({
     setSelectedAnswer,
   ] = useState<number | null>(null)
 
-  const [answers, setAnswers] = useState<QuizResultAnswer[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [completed, setCompleted] = useState(false)
+  const [result, setResult] = useState<QuizSubmissionResult | null>(null)
+  const [questionResults, setQuestionResults] = useState<QuizAnswerResult[]>([])
 
-  const score = answers.length
-    ? answers.filter((answer) => answer.isCorrect).length / answers.length
-    : 0
-  const passed = score >= 1
+  const score = result?.score ?? 0
+  const passed = result?.passed ?? false
 
 
   const question =
     questions[currentQuestion]
 
 
-  const isCorrect =
-    selectedAnswer !== null &&
-    selectedAnswer ===
-      question.correctAnswer
+  const answerResult = questionResults.find(
+    (answer) => answer.exerciseId === question.exerciseId,
+  )
+  const isCorrect = answerResult?.isCorrect ?? false
 
 
-  const handleAnswer = (
-    index: number
-  ) => {
-
-    if (
-      selectedAnswer !== null
-    ) {
-      return
+  const completeQuiz = async () => {
+    setIsSaving(true)
+    setSaveError(null)
+    try {
+      const submission = await onComplete()
+      setResult(submission)
+    } catch {
+      setSaveError('No pudimos finalizar el quiz. Intenta nuevamente.')
+    } finally {
+      setIsSaving(false)
     }
+  }
 
-    setSelectedAnswer(index)
+  const submitAnswer = async (index: number) => {
+    if (isSaving) return
+    setIsSaving(true)
+    setSaveError(null)
 
     const answer: QuizResultAnswer = {
       exerciseId: question.exerciseId,
-      question: question.question,
       selectedIndex: index,
-      correctIndex: question.correctAnswer,
-      isCorrect: index === question.correctAnswer,
     }
-    const nextAnswers = [...answers, answer]
-    setAnswers(nextAnswers)
 
-    if (currentQuestion === questions.length - 1) {
-      setIsSaving(true)
-      setSaveError(null)
-      void Promise.resolve(onComplete?.(nextAnswers))
-        .then(() => setCompleted(true))
-        .catch(() => setSaveError('No pudimos guardar tu resultado. Intenta nuevamente.'))
-        .finally(() => setIsSaving(false))
+    try {
+      const submittedResult = await onAnswer(answer)
+      const existingResult = questionResults.some(
+        (current) => current.exerciseId === question.exerciseId,
+      )
+      if (!existingResult) {
+        setQuestionResults((current) => [...current, submittedResult])
+      }
+
+      if (currentQuestion === questions.length - 1) {
+        try {
+          const submission = await onComplete()
+          setResult(submission)
+        } catch {
+          setSaveError('No pudimos finalizar el quiz. Intenta nuevamente.')
+        }
+      }
+    } catch {
+      setSaveError('No pudimos guardar tu respuesta. Intenta nuevamente.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleAnswer = (index: number) => {
+    if (selectedAnswer !== null || isSaving || result !== null) return
+    setSelectedAnswer(index)
+    void submitAnswer(index)
+  }
+
+  const retryCurrentAnswer = () => {
+    if (selectedAnswer === null || isSaving) return
+    if (answerResult && currentQuestion === questions.length - 1) {
+      void completeQuiz()
+    } else {
+      void submitAnswer(selectedAnswer)
     }
   }
 
 
+  const retryQuiz = async () => {
+    if (!onRetry || isSaving) return
+    setIsSaving(true)
+    setSaveError(null)
+    try {
+      await onRetry()
+    } catch {
+      setSaveError('No se pudo preparar otro quiz. Intenta nuevamente.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const nextQuestion = () => {
+    if (isSaving || !answerResult) return
 
     setSelectedAnswer(null)
 
@@ -179,28 +229,12 @@ function Quiz({
             let className =
               'quiz-option'
 
-            if (
-              selectedAnswer !== null
-            ) {
-
-              if (
-                index ===
-                question.correctAnswer
-              ) {
-
-                className +=
-                  ' correct'
-
-              } else if (
-                index ===
-                selectedAnswer
-              ) {
-
-                className +=
-                  ' incorrect'
-
+            if (answerResult) {
+              if (index === answerResult.correctIndex) {
+                className += ' correct'
+              } else if (index === selectedAnswer) {
+                className += ' incorrect'
               }
-
             }
 
 
@@ -208,6 +242,7 @@ function Quiz({
               <button
                 key={index}
                 className={className}
+                disabled={selectedAnswer !== null || isSaving || result !== null}
                 onClick={() =>
                   handleAnswer(index)
                 }
@@ -236,19 +271,28 @@ function Quiz({
         <div className="quiz-feedback">
 
           <p>
-            {isCorrect
-              ? '🎉 ¡Correcto!'
-              : '💡 No exactamente.'}
+            {answerResult
+              ? (isCorrect ? '🎉 ¡Correcto!' : '💡 No exactamente.')
+              : 'Revisando tu respuesta...'}
           </p>
 
 
-          {question.explanation && (
+          {answerResult?.explanation && (
             <p className="quiz-explanation">
-              {question.explanation}
+              {answerResult.explanation}
             </p>
           )}
 
-          {!isCorrect && (
+          {saveError && (
+            <div className="quiz-completion-modal" role="alert">
+              <p className="quiz-error">{saveError}</p>
+              <button className="next-button" onClick={retryCurrentAnswer} disabled={isSaving}>
+                Reintentar
+              </button>
+            </div>
+          )}
+
+          {answerResult && !isCorrect && (
             <button
               type="button"
               className="explain-button"
@@ -273,6 +317,7 @@ function Quiz({
             <button
               className="next-button"
               onClick={nextQuestion}
+              disabled={isSaving || answerResult === undefined}
             >
               Siguiente pregunta →
             </button>
@@ -280,8 +325,8 @@ function Quiz({
 
           {currentQuestion === questions.length - 1 && (
             <div className="quiz-completion">
-              {isSaving && <p>Guardando tu resultado...</p>}
-              {completed && !saveError && (
+              {isSaving && <p>{answerResult ? 'Guardando tu resultado...' : 'Revisando tu respuesta...'}</p>}
+              {result && !saveError && (
                 <div className="quiz-completion-modal" role="status">
                   <h3>✅ Quiz completado</h3>
                   <p>
@@ -292,19 +337,10 @@ function Quiz({
                       Siguiente lección →
                     </button>
                   ) : (
-                    <button className="next-button" onClick={onRetry}>
+                    <button className="next-button" onClick={() => void retryQuiz()}>
                       Rehacer quiz
                     </button>
                   )}
-                </div>
-              )}
-              {saveError && (
-                <div className="quiz-completion-modal" role="alert">
-                  <h3>No se pudo guardar el quiz</h3>
-                  <p className="quiz-error">{saveError}</p>
-                  <button className="next-button" onClick={onRetry}>
-                    Intentar nuevamente
-                  </button>
                 </div>
               )}
             </div>

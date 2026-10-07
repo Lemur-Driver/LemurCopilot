@@ -117,6 +117,7 @@ class QuizAnswerRecord(BaseModel):
     selected_index: int
     correct_index: int | None = None
     is_correct: bool
+    topic: str | None = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -124,6 +125,9 @@ class Session(MongoBaseModel):
     student_id: PyObjectId
     started_at: datetime = Field(default_factory=datetime.utcnow)
     quiz_topic: str | None = None
+    quiz_exercise_ids: list[PyObjectId] = Field(default_factory=list)
+    quiz_status: Literal["assigned", "completed"] | None = None
+    completed_at: datetime | None = None
     score: float | None = None
     answers: list[QuizAnswerRecord] = Field(default_factory=list)
     messages: list[SessionMessage] = Field(default_factory=list)

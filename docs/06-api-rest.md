@@ -16,7 +16,8 @@
 | GET | `/` | Saludo de la API | ✅ Activo |
 | GET | `/health` | Healthcheck | ✅ Activo |
 | POST | `/auth/google` | Login con Google (verifica `id_token`) | ✅ Activo |
-| POST | `/lessons/generate/{topic}` | Genera lección + quiz de un tema | ✅ Activo (core) |
+| POST | `/lessons/generate/{topic}` | Genera la lección de un tema | ✅ Activo (core) |
+| POST | `/lessons/{topic}/quiz` | Asigna un quiz del pool al estudiante | ✅ Activo (core) |
 | POST | `/chat/stream` | Chat tutor con streaming NDJSON | ✅ Activo (core) |
 | POST | `/rag/search` | Búsqueda semántica en el manual | 🧪 Exploración |
 | POST | `/rag/ask` | QA directa sobre el manual | 🧪 Exploración |
@@ -84,7 +85,7 @@ Verifica criptográficamente el `id_token` emitido por Google Identity Services 
 
 ### `POST /lessons/generate/{topic}`
 
-Genera la mini-lección en vivo y obtiene el quiz desde el pool compartido del tema. Si el estudiante conoce al menos el 80% del pool, o no hay suficientes preguntas nuevas, el backend genera un lote con RAG, lo valida, deduplica y lo publica para todos. Sin cuerpo en el request; todo va en el path.
+Genera la mini-lección en vivo y prepara el pool de preguntas del tema. La asignación concreta del quiz se realiza mediante `POST /lessons/{topic}/quiz`, que crea una sesión vinculada al estudiante. La respuesta de generación no contiene el quiz. Sin cuerpo en el request; todo va en el path.
 
 **Parámetros de ruta:** `topic` — código del tema (`C1.1`, `C1.2`, `C2.1`, `C2.2`, `C2.3`, …). Debe existir:
 1. en `LESSON_CONFIGS` (configuración pedagógica), y
@@ -113,17 +114,6 @@ curl -X POST http://localhost:8000/lessons/generate/C1.1
     ],
     "key_points": ["Idea clave 1", "Idea clave 2"]
   },
-  "quiz": {
-    "questions": [
-      {
-        "exerciseId": "66f…",
-        "question": "¿Qué factor aumenta…?",
-        "options": ["A", "B", "C", "D"],
-        "correctAnswer": 2,
-        "explanation": "Porque el manual indica…"
-      }
-    ]
-  },
   "sources": [
     { "page": 8, "title": "Estadísticas de siniestros en Chile", "source": "manual_conduccion_clase_b" }
   ]
@@ -132,7 +122,7 @@ curl -X POST http://localhost:8000/lessons/generate/C1.1
 
 **Contratos garantizados por validación en backend:**
 - `lesson.sections` ≥ 1; cada sección con `title` y `content` (`example` puede ser vacío).
-- `quiz.questions` tiene **exactamente 3** preguntas, cada una con **4 opciones**, `correctAnswer` entero entre 0 y 3, y `explanation`.
+- `POST /lessons/{topic}/quiz` devuelve exactamente 3 preguntas, cada una con 4 opciones y `exerciseId`; no incluye clave correcta ni explicación antes de responder.
 
 **Errores:**
 
@@ -143,9 +133,32 @@ curl -X POST http://localhost:8000/lessons/generate/C1.1
 
 > ⏱️ **Latencia:** normalmente involucra una llamada al LLM para la lección. Solo se añade una llamada para generar preguntas cuando el pool está vacío, agotado o supera el umbral de cobertura.
 
+### `POST /lessons/{topic}/quiz`
+
+Asigna al estudiante autenticado tres preguntas del pool y crea una sesión de quiz. Las preguntas devueltas incluyen `exerciseId`, `question` y `options`; la clave correcta y la explicación no se envían antes de responder.
+
+**Response `200 OK`:**
+
+```json
+{
+  "quiz": {
+    "sessionId": "66f...",
+    "questions": [
+      { "exerciseId": "66f...", "question": "¿Qué factor aumenta…?", "options": ["A", "B", "C", "D"] }
+    ]
+  }
+}
+```
+
+### `POST /students/me/quiz-answer`
+
+Registra una respuesta individual de la sesión activa y devuelve enseguida `correctIndex`, `isCorrect` y `explanation`. Solo acepta ejercicios asignados en la sesión del estudiante; una respuesta ya registrada no puede cambiarse.
+
+**Request:** `{ "sessionId": "66f...", "exerciseId": "66f...", "selectedIndex": 0 }`.
+
 ### `POST /students/me/quiz-results`
 
-Guarda un quiz completo. El cuerpo contiene tres respuestas con `exerciseId` y `selectedIndex`. El backend recupera cada ejercicio, recalcula la corrección, actualiza sus métricas y persiste el historial del estudiante. `isCorrect` y `correctIndex` enviados por el cliente no se consideran fuente de verdad.
+**Request:** `{ "sessionId": "66f..." }`. Finaliza un quiz solo si sus tres respuestas ya quedaron registradas. El backend calcula el resultado desde esas respuestas guardadas, actualiza el progreso y marca la sesión completada.
 
 ---
 

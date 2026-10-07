@@ -23,5 +23,6 @@ async def ensure_indexes() -> None:
     await exercises_collection.create_index("fingerprint", unique=True, sparse=True)
     await exercises_collection.create_index([("topic", 1), ("reviewed", 1), ("difficulty", 1)])
     await sessions_collection.create_index("student_id")
+    await sessions_collection.create_index([("student_id", 1), ("quiz_status", 1)])
     await sessions_collection.create_index("answers.exercise_id")
     await concepts_collection.create_index("unit")

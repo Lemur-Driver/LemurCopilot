@@ -30,6 +30,23 @@ router = APIRouter(
 )
 
 
+@router.post("/{topic}/quiz")
+async def create_quiz(
+    topic: str,
+    student: Student = Depends(get_current_student),
+):
+    if not is_topic_unlocked(student, topic):
+        raise HTTPException(
+            status_code=403,
+            detail="Debes completar la unidad anterior antes de acceder a esta clase.",
+        )
+
+    try:
+        return {"quiz": await select_quiz(student.id, topic)}
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+
 @router.post(
     "/generate/{topic}"
 )
@@ -117,7 +134,6 @@ async def create_lesson(
             config=config,
             student_profile=student_profile,
         )
-        quiz = await select_quiz(student.id, topic)
 
 
         # ====================================================
@@ -128,8 +144,6 @@ async def create_lesson(
             "topic": topic,
 
             "lesson": lesson,
-
-            "quiz": quiz,
 
             "sources": (
                 lesson_result["sources"]
