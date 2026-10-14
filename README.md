@@ -46,7 +46,7 @@ http://localhost:8000/docs
 
 ## Demo & Preview
 
-Runa de lecciones
+Ruta de lecciones
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/211d0dc1-164f-46e0-b358-0a1aca498be8" />
 
 Clases
