@@ -22,3 +22,16 @@ services:
       - ./backend:/app
     env_file:
       - .env
+  content-worker:
+    build:
+      context: ./backend
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    environment:
+      CONTENT_VERSION: ${CONTENT_VERSION:-conaset-clase-b-2026-10}
+      CONTENT_WORKER_MINIMUM_QUESTIONS: ${CONTENT_WORKER_MINIMUM_QUESTIONS:-15}
+    command: ["python", "-m", "app.jobs.generate_content"]
+    profiles:
+      - jobs

@@ -1521,7 +1521,11 @@ Debes utilizar exactamente esta estructura:
       "explanation": "...",
       "evidence_refs": [
         {"page": 1, "chunk_index": 0, "quote": "Cita literal del manual"}
-      ]
+      ],
+      "concept_tags": ["concepto_en_snake_case"],
+      "misconception_tags": [],
+      "difficulty": 0.5,
+      "cognitive_skill": "recall"
     }
   ]
 }

@@ -26,12 +26,15 @@ def question_fingerprint(
     question: str,
     options: Iterable[str],
     correct_index: int | None = None,
+    release_id: str | None = None,
 ) -> str:
     normalized = "|".join(
         [topic, normalize_question(question), *(normalize_question(option) for option in options)]
     )
     if correct_index is not None:
         normalized = f"{normalized}|answer:{correct_index}"
+    if release_id is not None:
+        normalized = f"{normalized}|release:{release_id}"
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
@@ -71,8 +74,16 @@ async def _known_ids(student_id: str, topic: str) -> set[str]:
     return known
 
 
-async def _pool_documents(topic: str) -> list[dict[str, Any]]:
-    return await exercises_collection.find({"topic": topic, "language": "es"}).to_list()
+async def _pool_documents(topic: str, release_id: str | None = None) -> list[dict[str, Any]]:
+    query: dict[str, Any] = {"topic": topic, "language": "es"}
+    from app.services.content_release_service import get_published_release_id
+
+    published_release_id = release_id or await get_published_release_id(topic)
+    if not published_release_id:
+        return []
+    query["release_id"] = published_release_id
+    query["status"] = "published"
+    return await exercises_collection.find(query).to_list()
 
 
 def _stored_question_consistent(item: dict[str, Any]) -> bool:
@@ -91,6 +102,10 @@ def _stored_question_consistent(item: dict[str, Any]) -> bool:
         and item.get("correct_answer") == options[correct_index]
         and isinstance(item.get("explanation"), str)
         and bool(item["explanation"].strip())
+        and (
+            item.get("status") in (None, "pending", "generated", "verifying", "ready", "published")
+            and item.get("verified") in (None, True)
+        )
     )
 
 
@@ -112,9 +127,18 @@ async def _is_duplicate(
     return False
 
 
-async def _publish_questions(topic: str, questions: list[dict[str, Any]], chunks: list[dict[str, Any]]) -> int:
+async def _publish_questions(
+    topic: str,
+    questions: list[dict[str, Any]],
+    chunks: list[dict[str, Any]],
+    *,
+    release_id: str | None = None,
+    content_version: str | None = None,
+    prompt_version: str | None = None,
+    verification_version: str | int = 2,
+) -> int:
     existing = [
-        item for item in await _pool_documents(topic)
+        item for item in await _pool_documents(topic, release_id)
         if item.get("verified") is True
     ]
     published = 0
@@ -127,8 +151,23 @@ async def _publish_questions(topic: str, questions: list[dict[str, Any]], chunks
         text = question.get("question", "")
         options = question.get("options", [])
         correct_index = question.get("correctAnswer")
+        metadata_valid = (
+            release_id is None
+            or (
+                isinstance(question.get("concept_tags"), list)
+                and bool(question["concept_tags"])
+                and all(isinstance(tag, str) and tag.strip() for tag in question["concept_tags"])
+                and isinstance(question.get("misconception_tags"), list)
+                and all(isinstance(tag, str) and tag.strip() for tag in question["misconception_tags"])
+                and isinstance(question.get("difficulty"), (int, float))
+                and not isinstance(question.get("difficulty"), bool)
+                and 0 <= question["difficulty"] <= 1
+                and question.get("cognitive_skill") in {"recall", "comprehension", "application", "analysis"}
+            )
+        )
         if (
-            not isinstance(text, str)
+            not metadata_valid
+            or not isinstance(text, str)
             or not text.strip()
             or not isinstance(options, list)
             or len(options) != 4
@@ -173,14 +212,22 @@ async def _publish_questions(topic: str, questions: list[dict[str, Any]], chunks
             "correct_answer": options[correct_index],
             "correct_answer_text": question.get("correctAnswerText"),
             "explanation": question.get("explanation"),
-            "difficulty": 0.5,
+            "difficulty": question.get("difficulty", 0.5),
+            "concept_tags": question.get("concept_tags", []),
+            "misconception_tags": question.get("misconception_tags", []),
+            "cognitive_skill": question.get("cognitive_skill", "recall"),
             "generated_by": "llm",
             "source_chunk_ids": [chunk["_id"] for chunk in referenced_chunks if chunk.get("_id")],
             "evidence_refs": evidence_refs,
-            "fingerprint": question_fingerprint(topic, text, options, correct_index),
-            "reviewed": True,
+            "fingerprint": question_fingerprint(topic, text, options, correct_index, release_id),
+            "content_version": content_version,
+            "prompt_version": prompt_version,
+            "verification_version": verification_version,
+            "release_id": release_id,
+            "status": "ready" if release_id else "published",
+            "review_status": None,
+            "reviewed": False,
             "verified": True,
-            "verification_version": 2,
         }
         result = await exercises_collection.update_one(
             {"fingerprint": document["fingerprint"]},
@@ -201,6 +248,11 @@ async def _generate_batch(
     config: dict[str, Any],
     student_profile: dict[str, Any] | None,
     question_count: int = QUIZ_SIZE,
+    *,
+    release_id: str | None = None,
+    content_version: str | None = None,
+    prompt_version: str | None = None,
+    verification_version: str | int = 2,
 ) -> int:
     from app.services.quiz_service import generate_quiz
 
@@ -212,7 +264,15 @@ async def _generate_batch(
         student_profile=student_profile,
         question_count=question_count,
     )
-    return await _publish_questions(topic, generated["questions"], chunks)
+    return await _publish_questions(
+        topic,
+        generated["questions"],
+        chunks,
+        release_id=release_id,
+        content_version=content_version,
+        prompt_version=prompt_version,
+        verification_version=verification_version,
+    )
 
 
 async def _verify_pending_questions(topic: str, chunks: list[dict[str, Any]]) -> None:
@@ -224,6 +284,11 @@ async def _verify_pending_questions(topic: str, chunks: list[dict[str, Any]]) ->
             "language": "es",
             "verified": {"$ne": True},
             "verification_version": {"$ne": 2},
+            "$or": [
+                {"status": {"$exists": False}},
+                {"status": None},
+                {"status": "published"},
+            ],
         }
     ).limit(QUIZ_SIZE).to_list()
     for item in pending:

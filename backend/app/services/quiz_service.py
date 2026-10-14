@@ -403,6 +403,7 @@ Recuerda:
 - correctAnswer entre 0 y 3 y consistente con correctAnswerText
 - explanation debe justificar exactamente la alternativa marcada
 - incluye evidence_refs con página, chunk_index y cita literal de cada evidencia
+- incluye concept_tags (al menos un concepto concreto), misconception_tags (lista vacía si no aplica), difficulty entre 0 y 1 y cognitive_skill: recall, comprehension, application o analysis
 - devuelve solamente JSON válido
 """
 

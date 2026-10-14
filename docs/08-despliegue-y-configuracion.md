@@ -14,6 +14,7 @@ flowchart TB
         subgraph Compose["docker compose"]
             FE["frontend<br/>node:22-alpine<br/>npm run dev (Vite)"]
             BE["backend<br/>python:3.12-slim<br/>uvicorn --reload"]
+            CW["content-worker<br/>python:3.12-slim<br/>bajo demanda"]
         end
         VOL1[("./frontend → /app")]
         VOL2[("./backend → /app")]
@@ -135,10 +136,22 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 |----------|--------|-----------|-------|
 | `frontend` | `5173:5173` | `./frontend:/app` + volumen anónimo `/app/node_modules` | El volumen anónimo evita que el bind-mount pise los `node_modules` del contenedor |
 | `backend` | `8000:8000` | `./backend:/app` | `env_file: .env` |
+| `content-worker` | — | `./backend:/app` | Perfil Compose `jobs`; ejecuta el mismo Dockerfile y configuración del backend bajo demanda. |
 
 ---
 
-## 8.5 Operaciones puntuales
+## 8.5 Worker offline de contenido
+
+El worker comparte imagen, variables y conexión MongoDB con FastAPI, pero se invoca explícitamente y no se levanta durante `docker compose up`:
+
+```bash
+docker compose run --rm content-worker --topic C1.1
+docker compose run --rm content-worker --all
+docker compose run --rm content-worker --failed
+docker compose run --rm content-worker --topic C1.1 --force
+```
+
+Cada ejecución crea o actualiza `content_jobs` y almacena estado, error, duración y conteos. Los releases comienzan en `building` y alcanzan `ready` solo al procesar todos sus temas. Las lecciones y preguntas aprobadas quedan en `ready`; esta primera etapa todavía no activa releases ni cambia la API del estudiante. El mínimo de preguntas es 10 por tema y puede ajustarse con `CONTENT_WORKER_MINIMUM_QUESTIONS`.
 
 ### Ingesta / re-ingesta del manual
 

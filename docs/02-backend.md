@@ -13,6 +13,8 @@ backend/app/
 ├── main.py                  # Ensamblaje de la aplicación
 ├── database.py              # Conexión MongoDB + definición de índices
 ├── models.py                # Esquemas Pydantic de los documentos
+├── jobs/
+│   └── generate_content.py  # Worker offline para generar y verificar releases
 │
 ├── routes/                  # ── Capa HTTP ─────────────────────
 │   ├── auth.py              #   POST /auth/google
@@ -27,8 +29,8 @@ backend/app/
 │   ├── chat_service.py      #   Guardrails + pipeline del tutor
 │   ├── rag_service.py       #   Búsqueda vectorial + QA
 │   ├── content_service.py   #   Lectura de chunks por tema
-│   ├── lesson_service.py    #   Generación + validación de lecciones
-│   ├── quiz_service.py      #   Generación + validación de quizzes
+│   ├── lesson_service.py    #   Generación + validación de lecciones y variantes
+│   ├── quiz_service.py      #   Generación + validación de quizzes y metadatos pedagógicos
 │   ├── exercise_service.py  #   Selección adaptativa de ejercicios (futuro)
 │   ├── embedding_service.py #   (placeholder, vacío)
 │   └── retrieval_service.py #   (placeholder, vacío)
@@ -61,8 +63,8 @@ Responsabilidades:
 ### [`database.py`](../backend/app/database.py) — persistencia
 
 - Crea un único `AsyncMongoClient` (pool de conexiones compartido por toda la app) a partir de `MONGODB_URI` y `MONGODB_DATABASE`.
-- Exporta handles tipados a las 5 colecciones: `students`, `concepts`, `exercises`, `sessions`, `manual_chunks`.
-- `ensure_indexes()` declara los índices transaccionales (único por `email` y `google_sub`, compuesto para ejercicios, etc.). El índice vectorial se crea aparte en Atlas — ver [04 - Base de datos](./04-base-de-datos.md).
+- Exporta handles a `students`, `concepts`, `exercises`, `sessions`, `manual_chunks`, `generated_lessons`, `content_releases` y `content_jobs`.
+- `ensure_indexes()` declara índices de acceso por estado/tema/release y unicidad de variantes de lección y `release_id`, además de los índices existentes. El índice vectorial se crea aparte en Atlas — ver [04 - Base de datos](./04-base-de-datos.md).
 
 ### [`models.py`](../backend/app/models.py) — contratos de datos
 
@@ -73,7 +75,10 @@ Modelos Pydantic v2 que documentan y validan la forma de los documentos Mongo. C
 | `MongoBaseModel` | — | Clase base: mapea `_id` ↔ `id` (`PyObjectId`). |
 | `Student` / `MasteryEntry` | `students` | Identidad Google + mapa de dominio por concepto (`mastery`). |
 | `Concept` | `concepts` | Nodo del grafo de conocimiento (prerequisitos, unidad). |
-| `Exercise` | `exercises` | Ejercicio con dificultad, métricas de uso y flag de revisión. |
+| `Exercise` | `exercises` | Ejercicio con tags de conceptos y errores, habilidad cognitiva, versión, release y estado de verificación/publicación; los campos nuevos son opcionales para documentos previos. |
+| `GeneratedLesson` | `generated_lessons` | Variante pedagógica de lección ligada a tema, idioma, versión, release y verificación. |
+| `ContentRelease` | `content_releases` | Estado y metadatos de un conjunto versionado de contenido. |
+| `ContentJob` | `content_jobs` | Estado, error, duración y conteos de un procesamiento de tema. |
 | `Session` / `SessionMessage` / `ExerciseAttempt` | `sessions` | Historial conversacional y de intentos por estudiante. |
 | `ContentChunk` | `manual_chunks` | Fragmento del manual con su `embedding`. |
 

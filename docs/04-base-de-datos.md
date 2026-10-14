@@ -19,6 +19,9 @@ erDiagram
     CONCEPTS ||--o{ EXERCISES : "evalúa"
     SESSIONS ||--o{ EXERCISES : "registra intentos de"
     MANUAL_CHUNKS ||--o{ CONCEPTS : "fundamenta (source_refs)"
+    CONTENT_RELEASES ||--o{ GENERATED_LESSONS : "versiona"
+    CONTENT_RELEASES ||--o{ CONTENT_JOBS : "agrupa"
+    CONTENT_RELEASES ||--o{ EXERCISES : "publica"
 
     STUDENTS {
         ObjectId _id PK
@@ -49,6 +52,15 @@ erDiagram
         float difficulty
         string generated_by
         array source_chunk_ids
+        array concept_tags
+        array misconception_tags
+        string cognitive_skill
+        string content_version
+        string prompt_version
+        string verification_version
+        string release_id FK
+        string status
+        bool verified
         bool reviewed
         datetime created_at
         int times_served
@@ -61,6 +73,30 @@ erDiagram
         datetime started_at
         array messages
         array exercises_attempted
+    }
+    GENERATED_LESSONS {
+        ObjectId _id PK
+        string topic
+        string variant
+        string release_id FK
+        object lesson
+        bool verified
+        string status
+    }
+    CONTENT_RELEASES {
+        ObjectId _id PK
+        string release_id UK
+        string content_version
+        string status
+        datetime published_at
+    }
+    CONTENT_JOBS {
+        ObjectId _id PK
+        string job_id
+        string release_id FK
+        string topic
+        string status
+        float duration_seconds
     }
     MANUAL_CHUNKS {
         ObjectId _id PK
@@ -118,11 +154,20 @@ Escritura: únicamente por `upsert_student_from_google()` (`$set` perfil + `$set
 | `difficulty` | float (0–1) | Dificultad objetivo; selección con tolerancia ±0.15. |
 | `generated_by` | enum | `llm` \| `manual`. |
 | `source_chunk_ids` | ObjectId[] | Trazabilidad al manual. |
-| `fingerprint` | string | Huella única para impedir duplicados exactos del pool. |
+| `fingerprint` | string | Huella única para impedir duplicados exactos; el worker incluye el release en la huella para aislar versiones. |
+| `concept_tags` / `misconception_tags` | string[] | Conceptos evaluados y errores conceptuales frecuentes asociados. Opcionales para los ejercicios históricos. |
+| `cognitive_skill` | enum | Habilidad `recall`, `comprehension`, `application` o `analysis`. |
+| `content_version` / `prompt_version` / `verification_version` | string | Versiones del contenido, prompt y verificador utilizados. |
+| `release_id` | string \| null | Release que contiene el ejercicio. Las preguntas anteriores a releases no tienen este campo. |
+| `status` / `verified` | enum / bool | Ciclo de generación y verificación (`ready` es candidato validado; no implica release publicado). |
 | `reviewed` | bool | Las preguntas generadas automáticamente se publican tras validación estructural y deduplicación. |
 | `times_served` / `times_correct` / `times_incorrect` | int | Métricas de uso: reparten desgaste (máx. 20 servidos) y permiten recalibrar `difficulty`. |
 
-### 4.2.4 `sessions` — historial de interacción
+### 4.2.4 `generated_lessons`, `content_releases` y `content_jobs`
+
+`generated_lessons` mantiene hasta tres variantes (`standard`, `reinforcement`, `challenge`) por tema, idioma y release. Cada documento conserva las fuentes del manual, las versiones de generación y verificación y el estado del contenido. `content_releases` agrupa los documentos y avanza por `building`, `validating`, `ready` y `published`; `content_jobs` registra cada ejecución por tema, intentos, error, duración y conteos. La publicación para estudiantes aún no se activa: el worker deja los elementos verificados en `ready`.
+
+### 4.2.5 `sessions` — historial de interacción
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
@@ -132,7 +177,7 @@ Escritura: únicamente por `upsert_student_from_google()` (`$set` perfil + `$set
 | `quiz_topic` / `score` | string / float | Tema y resultado del quiz completo. |
 | `answers` | subdocumentos[] | `{ exercise_id, selected_index, correct_index, is_correct, timestamp }` — historial por pregunta. |
 
-### 4.2.5 `manual_chunks` — corpus RAG (colección activa principal)
+### 4.2.6 `manual_chunks` — corpus RAG (colección activa principal)
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
@@ -159,8 +204,14 @@ Escritura: solo `scripts/ingest_manual.py` (borrado selectivo por `(course, topi
 | `students` | `email` | único | Deduplicación por correo |
 | `students` | `google_sub` | único | Clave de login (upsert) |
 | `exercises` | `(concept_id, difficulty, reviewed)` | compuesto | Query exacta del selector adaptativo |
-| `exercises` | `fingerprint` | único disperso | Deduplicación global de preguntas |
+| `exercises` | `fingerprint` | único disperso | Deduplicación por pregunta y versión/release |
 | `exercises` | `(topic, reviewed, difficulty)` | compuesto | Selección del pool por tema |
+| `exercises` | `(topic, language, status, release_id)` | compuesto | Pool candidato por tema y release |
+| `exercises` | `(topic, concept_tags)` | compuesto | Filtro curricular por concepto |
+| `generated_lessons` | `(topic, language, status, release_id, variant)` | compuesto | Búsqueda por estado y release |
+| `generated_lessons` | `(topic, language, release_id, variant)` | único | Una variante por tema e idioma en cada release |
+| `content_releases` | `release_id` | único | Identidad del release |
+| `content_jobs` | `(status, next_retry_at)` / `(release_id, topic)` | compuesto | Reintentos y estado de trabajos |
 | `sessions` | `student_id` | simple | Historial por estudiante |
 | `sessions` | `answers.exercise_id` | simple | Cobertura y anti-repetición por pregunta |
 | `concepts` | `unit` | simple | Listados por unidad |

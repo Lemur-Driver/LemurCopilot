@@ -1,0 +1,164 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+
+from app.database import (
+    content_releases_collection,
+    content_catalog_collection,
+    exercises_collection,
+    generated_lessons_collection,
+)
+
+CATALOG_ID = "published"
+
+
+def merge_published_topics(
+    current: list[dict[str, str]], release_topics: list[str], release_id: str
+) -> list[dict[str, str]]:
+    replacements = set(release_topics)
+    merged = [item for item in current if item.get("topic") not in replacements]
+    merged.extend({"topic": topic, "release_id": release_id} for topic in release_topics)
+    return sorted(merged, key=lambda item: item["topic"])
+
+
+def release_validation_errors(
+    topic: str,
+    lesson: dict[str, Any] | None,
+    questions: list[dict[str, Any]],
+    minimum_questions: int,
+    manual_review_required: bool,
+) -> list[str]:
+    errors = []
+    if not lesson or lesson.get("status") not in {"ready", "published"} or lesson.get("verified") is not True:
+        errors.append(f"{topic}: falta una lección standard verificada")
+    eligible = [
+        question for question in questions
+        if question.get("status") in {"ready", "published"} and question.get("verified") is True
+    ]
+    if manual_review_required:
+        eligible = [question for question in eligible if question.get("review_status") == "approved"]
+    if len(eligible) < minimum_questions:
+        errors.append(f"{topic}: pool publicable insuficiente ({len(eligible)}/{minimum_questions})")
+    return errors
+
+
+async def get_published_release_id(topic: str) -> str | None:
+    catalog = await content_catalog_collection.find_one({"_id": CATALOG_ID})
+    if not catalog:
+        return None
+    return next(
+        (item["release_id"] for item in catalog.get("topics", []) if item.get("topic") == topic),
+        None,
+    )
+
+
+async def get_published_lesson(topic: str, variant: str = "standard") -> dict[str, Any] | None:
+    release_id = await get_published_release_id(topic)
+    if not release_id:
+        return None
+    return await generated_lessons_collection.find_one({
+        "topic": topic,
+        "language": "es",
+        "release_id": release_id,
+        "variant": variant,
+        "status": "published",
+        "verified": True,
+    })
+
+
+async def validate_release(release_id: str, minimum_questions: int) -> list[str]:
+    release = await content_releases_collection.find_one({"release_id": release_id})
+    if not release:
+        raise ValueError(f"No existe el release {release_id}")
+    if release.get("status") not in {"building", "validating", "ready"}:
+        raise ValueError(f"No se puede validar un release en estado {release.get('status')}")
+    await content_releases_collection.update_one(
+        {"release_id": release_id},
+        {"$set": {"status": "validating", "validation_started_at": datetime.utcnow()}},
+    )
+
+    topics = release.get("topics", [])
+    if not topics:
+        errors = ["El release no contiene temas procesados"]
+    elif "C1.1" in topics and not release.get("metadata", {}).get("pilot_review_completed"):
+        errors = ["Completa verify-existing y la revisión manual del piloto antes de validar"]
+    else:
+        default_manual_topics = ["C1.1"] if "C1.1" in topics else []
+        manual_topics = set(release.get("metadata", {}).get("manual_review_topics", default_manual_topics))
+        errors = []
+        if not manual_topics.issubset(set(topics)):
+            errors.append(f"Los temas de revisión manual no están todos en el release: {sorted(manual_topics - set(topics))}")
+        for topic in topics:
+            lesson = await generated_lessons_collection.find_one({
+                "topic": topic,
+                "language": "es",
+                "release_id": release_id,
+                "variant": "standard",
+            })
+            questions = await exercises_collection.find({
+                "topic": topic,
+                "language": "es",
+                "release_id": release_id,
+            }).to_list()
+            errors.extend(release_validation_errors(
+                topic, lesson, questions, minimum_questions, topic in manual_topics,
+            ))
+
+    update: dict[str, Any] = {
+        "validation_errors": errors,
+        "validated_at": datetime.utcnow(),
+    }
+    update["status"] = "ready" if not errors else "validating"
+    await content_releases_collection.update_one({"release_id": release_id}, {"$set": update})
+    return errors
+
+
+async def publish_release(release_id: str, minimum_questions: int) -> list[str]:
+    release = await content_releases_collection.find_one({"release_id": release_id})
+    if not release:
+        raise ValueError(f"No existe el release {release_id}")
+    if release.get("status") != "ready":
+        raise ValueError("Solo se pueden publicar releases en estado ready")
+
+    errors = await validate_release(release_id, minimum_questions)
+    if errors:
+        return errors
+
+    topics = release.get("topics", [])
+    current = await content_catalog_collection.find_one({"_id": CATALOG_ID})
+    current_topics = current.get("topics", []) if current else []
+    merged_topics = merge_published_topics(current_topics, topics, release_id)
+
+    async with await content_releases_collection.database.client.start_session() as session:
+        async with session.start_transaction():
+            for topic in topics:
+                await generated_lessons_collection.update_many({
+                    "topic": topic, "language": "es", "release_id": release_id,
+                    "status": "ready", "verified": True,
+                }, {"$set": {"status": "published", "updated_at": datetime.utcnow()}}, session=session)
+                await exercises_collection.update_many({
+                    "topic": topic, "language": "es", "release_id": release_id,
+                    "status": "ready", "verified": True,
+                    **({"review_status": "approved"} if topic in set(release.get("metadata", {}).get("manual_review_topics", ["C1.1"])) else {}),
+                }, {"$set": {"status": "published"}}, session=session)
+            await content_releases_collection.update_one({"release_id": release_id}, {"$set": {
+                "status": "published",
+                "published_at": datetime.utcnow(),
+            }}, session=session)
+            await content_catalog_collection.update_one(
+                {"_id": CATALOG_ID},
+                {"$set": {"topics": merged_topics, "updated_at": datetime.utcnow()}},
+                upsert=True,
+                session=session,
+            )
+
+    old_release_ids = {item.get("release_id") for item in current_topics} - {release_id}
+    for old_release_id in old_release_ids:
+        still_active = any(item.get("release_id") == old_release_id for item in merged_topics)
+        if not still_active:
+            await content_releases_collection.update_one(
+                {"release_id": old_release_id, "status": "published"},
+                {"$set": {"status": "superseded"}},
+            )
+    return []

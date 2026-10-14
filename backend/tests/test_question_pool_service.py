@@ -31,12 +31,14 @@ class QuestionPoolServiceTests(unittest.TestCase):
 
     def test_pool_question_requires_consistent_index_and_answer_text(self):
         self.assertTrue(_stored_question_consistent({
+            "question": "¿Cuál es la respuesta?",
             "options": ["A", "B", "C", "D"],
             "correct_index": 1,
             "correct_answer": "B",
             "explanation": "B es correcta.",
         }))
         invalid = {
+            "question": "¿Cuál es la respuesta?",
             "options": ["A", "B", "C", "D"],
             "correct_index": 1,
             "correct_answer": "C",

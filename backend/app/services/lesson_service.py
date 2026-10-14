@@ -315,6 +315,7 @@ async def generate_lesson(
     chunks: list[dict] | None = None,
     config: dict | None = None,
     student_profile: dict | None = None,
+    variant: str = "standard",
 ):
 
     # --------------------------------------------------------
@@ -380,8 +381,19 @@ async def generate_lesson(
     # 5. Prompt
     # --------------------------------------------------------
 
+    variant_instructions = {
+        "standard": "Explicación equilibrada y completa para un estudiante con dominio medio.",
+        "reinforcement": "Usa lenguaje sencillo, explicaciones progresivas y más ejemplos para reforzar conceptos difíciles.",
+        "challenge": "Reduce la repetición de definiciones y prioriza comparaciones y situaciones de aplicación respaldadas por la evidencia.",
+    }
+    if variant not in variant_instructions:
+        raise ValueError(f"Variante de lección no válida: {variant}")
+
     prompt = f"""
 {BASE_LESSON_PROMPT}
+
+VARIANTE PEDAGÓGICA ({variant}):
+{variant_instructions[variant]}
 
 
 TEMA:

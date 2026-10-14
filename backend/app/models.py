@@ -80,6 +80,9 @@ class Exercise(MongoBaseModel):
     topic: str | None = None
     language: str = "es"
     concept_id: PyObjectId | None = None
+    concept_tags: list[str] = Field(default_factory=list)
+    misconception_tags: list[str] = Field(default_factory=list)
+    cognitive_skill: str | None = None
     type: Literal["multiple_choice", "true_false", "open"] = "multiple_choice"
     question: str
     options: list[str] = Field(default_factory=list)
@@ -88,13 +91,80 @@ class Exercise(MongoBaseModel):
     explanation: str | None = None
     difficulty: float = 0.5
     generated_by: Literal["llm", "manual"] = "llm"
-    source_chunk_ids: list[PyObjectId] = Field(default_factory=list) 
+    source_chunk_ids: list[PyObjectId] = Field(default_factory=list)
     fingerprint: str | None = None
+    content_version: str | None = None
+    prompt_version: str | None = None
+    verification_version: str | int | None = None
+    release_id: str | None = None
+    status: Literal[
+        "pending", "generating", "generated", "verifying", "ready",
+        "published", "rejected", "failed", "superseded",
+    ] = "pending"
+    verified: bool = False
     reviewed: bool = False
+    review_status: Literal["pending", "approved", "rejected"] | None = None
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
+    review_notes: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     times_served: int = 0
     times_correct: int = 0
     times_incorrect: int = 0
+
+
+class GeneratedLesson(MongoBaseModel):
+    topic: str
+    variant: Literal["standard", "reinforcement", "challenge"]
+    language: str = "es"
+    lesson: dict[str, Any]
+    concept_tags: list[str] = Field(default_factory=list)
+    source_chunk_ids: list[PyObjectId] = Field(default_factory=list)
+    content_version: str
+    prompt_version: str
+    verification_version: str
+    release_id: str
+    status: Literal[
+        "pending", "generating", "generated", "verifying", "ready",
+        "published", "rejected", "failed", "superseded",
+    ] = "pending"
+    verified: bool = False
+    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    generation_metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ContentRelease(MongoBaseModel):
+    release_id: str
+    content_version: str
+    status: Literal[
+        "building", "validating", "ready", "published", "superseded", "failed",
+    ] = "building"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    published_at: datetime | None = None
+    topics: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ContentJob(MongoBaseModel):
+    job_id: str
+    release_id: str
+    topic: str
+    job_type: str = "generate_topic"
+    status: Literal[
+        "pending", "generating", "generated", "verifying", "ready",
+        "published", "rejected", "failed", "superseded",
+    ] = "pending"
+    attempts: int = 0
+    error_type: str | None = None
+    error_message: str | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    duration_seconds: float | None = None
+    generated_count: int = 0
+    rejected_count: int = 0
+    verification_failures: int = 0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 # ---------- sessions ----------
