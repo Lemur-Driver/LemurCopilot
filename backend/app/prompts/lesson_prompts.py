@@ -1452,7 +1452,7 @@ y del contenido oficial del manual.
 
 REGLAS:
 
-1. Genera exactamente 3 preguntas.
+1. Genera exactamente la cantidad de preguntas solicitada en la instrucción final.
 
 2. Cada pregunta debe tener exactamente 4 alternativas.
 
@@ -1465,21 +1465,26 @@ REGLAS:
 5. No agregues leyes, cifras, conceptos o recomendaciones
    externas.
 
-6. Las alternativas incorrectas deben ser plausibles.
+6. Las alternativas incorrectas deben ser plausibles, pero claramente incorrectas según el contexto.
 
 7. Evita alternativas absurdas o demasiado fáciles de descartar.
 
 8. Prioriza comprensión y aplicación por sobre memorización.
 
-9. No generes preguntas ambiguas.
+9. No generes preguntas ambiguas. Debe existir una sola alternativa inequívocamente correcta.
+   No uses "todas las anteriores" ni "ninguna de las anteriores".
 
-10. "correctAnswer" debe ser un número:
-    0 = primera alternativa
-    1 = segunda alternativa
-    2 = tercera alternativa
-    3 = cuarta alternativa
+10. Determina primero la respuesta correcta como texto. Después identifica la alternativa
+    idéntica y asigna su índice: 0 = primera, 1 = segunda, 2 = tercera, 3 = cuarta.
+    Verifica antes de responder que options[correctAnswer] contiene esa respuesta.
 
-11. Incluye una explicación breve para cada respuesta correcta.
+11. Incluye una explicación breve que defienda explícitamente la alternativa indicada
+    por correctAnswer. La explicación no debe justificar otra alternativa ni contradecirla.
+
+12. Cada pregunta debe citar evidencia del contexto oficial en evidence_refs. Usa page y
+    chunk_index del fragmento y copia en quote un pasaje breve, literal y continuo que
+    respalde la respuesta correcta. No inventes páginas, índices ni citas. Si no encuentras
+    evidencia suficiente para una pregunta única, no la generes.
 
 12. Todo el texto visible del quiz debe estar escrito en español neutro
   latinoamericano, incluyendo cada pregunta, todas las alternativas y
@@ -1511,8 +1516,12 @@ Debes utilizar exactamente esta estructura:
         "...",
         "..."
       ],
+      "correctAnswerText": "...",
       "correctAnswer": 0,
-      "explanation": "..."
+      "explanation": "...",
+      "evidence_refs": [
+        {"page": 1, "chunk_index": 0, "quote": "Cita literal del manual"}
+      ]
     }
   ]
 }

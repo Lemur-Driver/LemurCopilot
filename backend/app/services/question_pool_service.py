@@ -12,6 +12,7 @@ from app.database import exercises_collection, sessions_collection
 
 POOL_THRESHOLD = 0.8
 QUIZ_SIZE = 3
+MAX_GENERATION_BATCHES = 3
 SIMILARITY_THRESHOLD = 0.88
 _topic_locks: dict[str, asyncio.Lock] = {}
 
@@ -20,10 +21,17 @@ def normalize_question(value: str) -> str:
     return re.sub(r"\s+", " ", value.strip().lower())
 
 
-def question_fingerprint(topic: str, question: str, options: Iterable[str]) -> str:
+def question_fingerprint(
+    topic: str,
+    question: str,
+    options: Iterable[str],
+    correct_index: int | None = None,
+) -> str:
     normalized = "|".join(
         [topic, normalize_question(question), *(normalize_question(option) for option in options)]
     )
+    if correct_index is not None:
+        normalized = f"{normalized}|answer:{correct_index}"
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
@@ -67,8 +75,33 @@ async def _pool_documents(topic: str) -> list[dict[str, Any]]:
     return await exercises_collection.find({"topic": topic, "language": "es"}).to_list()
 
 
-async def _is_duplicate(topic: str, question: str, options: list[str], existing: list[dict[str, Any]]) -> bool:
-    fingerprint = question_fingerprint(topic, question, options)
+def _stored_question_consistent(item: dict[str, Any]) -> bool:
+    options = item.get("options", [])
+    correct_index = item.get("correct_index")
+    return (
+        isinstance(options, list)
+        and len(options) == 4
+        and all(isinstance(option, str) and option.strip() for option in options)
+        and len({option.strip().casefold() for option in options if isinstance(option, str)}) == 4
+        and isinstance(item.get("question"), str)
+        and bool(item["question"].strip())
+        and isinstance(correct_index, int)
+        and not isinstance(correct_index, bool)
+        and 0 <= correct_index < len(options)
+        and item.get("correct_answer") == options[correct_index]
+        and isinstance(item.get("explanation"), str)
+        and bool(item["explanation"].strip())
+    )
+
+
+async def _is_duplicate(
+    topic: str,
+    question: str,
+    options: list[str],
+    existing: list[dict[str, Any]],
+    correct_index: int,
+) -> bool:
+    fingerprint = question_fingerprint(topic, question, options, correct_index)
     normalized = normalize_question(question)
     for item in existing:
         if item.get("fingerprint") == fingerprint:
@@ -80,9 +113,15 @@ async def _is_duplicate(topic: str, question: str, options: list[str], existing:
 
 
 async def _publish_questions(topic: str, questions: list[dict[str, Any]], chunks: list[dict[str, Any]]) -> int:
-    existing = await _pool_documents(topic)
+    existing = [
+        item for item in await _pool_documents(topic)
+        if item.get("verified") is True
+    ]
     published = 0
-    source_ids = [str(chunk["_id"]) for chunk in chunks if chunk.get("_id")]
+    chunks_by_ref = {
+        (str(chunk.get("page")), str(chunk.get("chunk_index"))): chunk
+        for chunk in chunks
+    }
 
     for question in questions:
         text = question.get("question", "")
@@ -93,10 +132,35 @@ async def _publish_questions(topic: str, questions: list[dict[str, Any]], chunks
             or not text.strip()
             or not isinstance(options, list)
             or len(options) != 4
+            or any(not isinstance(option, str) or not option.strip() for option in options)
+            or len({option.strip().casefold() for option in options if isinstance(option, str)}) != 4
             or not isinstance(correct_index, int)
+            or isinstance(correct_index, bool)
             or not 0 <= correct_index < len(options)
-            or await _is_duplicate(topic, text, options, existing)
+            or options[correct_index].strip().casefold() != str(question.get("correctAnswerText", "")).strip().casefold()
+            or not question.get("verified")
+            or await _is_duplicate(topic, text, options, existing, correct_index)
         ):
+            continue
+
+        evidence_refs = question.get("evidence_refs", [])
+        referenced_chunks = []
+        valid_evidence = bool(evidence_refs)
+        for ref in evidence_refs:
+            if not isinstance(ref, dict):
+                valid_evidence = False
+                break
+            key = (str(ref.get("page")), str(ref.get("chunk_index")))
+            source_chunk = chunks_by_ref.get(key)
+            if (
+                source_chunk is None
+                or not isinstance(ref.get("quote"), str)
+                or " ".join(ref["quote"].casefold().split()) not in " ".join(source_chunk.get("text", "").casefold().split())
+            ):
+                valid_evidence = False
+                break
+            referenced_chunks.append(source_chunk)
+        if not valid_evidence:
             continue
 
         document = {
@@ -107,12 +171,16 @@ async def _publish_questions(topic: str, questions: list[dict[str, Any]], chunks
             "options": options,
             "correct_index": correct_index,
             "correct_answer": options[correct_index],
+            "correct_answer_text": question.get("correctAnswerText"),
             "explanation": question.get("explanation"),
             "difficulty": 0.5,
             "generated_by": "llm",
-            "source_chunk_ids": source_ids,
-            "fingerprint": question_fingerprint(topic, text, options),
+            "source_chunk_ids": [chunk["_id"] for chunk in referenced_chunks if chunk.get("_id")],
+            "evidence_refs": evidence_refs,
+            "fingerprint": question_fingerprint(topic, text, options, correct_index),
             "reviewed": True,
+            "verified": True,
+            "verification_version": 2,
         }
         result = await exercises_collection.update_one(
             {"fingerprint": document["fingerprint"]},
@@ -132,6 +200,7 @@ async def _generate_batch(
     chunks: list[dict[str, Any]],
     config: dict[str, Any],
     student_profile: dict[str, Any] | None,
+    question_count: int = QUIZ_SIZE,
 ) -> int:
     from app.services.quiz_service import generate_quiz
 
@@ -141,8 +210,45 @@ async def _generate_batch(
         chunks=chunks,
         config=config,
         student_profile=student_profile,
+        question_count=question_count,
     )
     return await _publish_questions(topic, generated["questions"], chunks)
+
+
+async def _verify_pending_questions(topic: str, chunks: list[dict[str, Any]]) -> None:
+    from app.services.quiz_service import verify_stored_question
+
+    pending = await exercises_collection.find(
+        {
+            "topic": topic,
+            "language": "es",
+            "verified": {"$ne": True},
+            "verification_version": {"$ne": 2},
+        }
+    ).limit(QUIZ_SIZE).to_list()
+    for item in pending:
+        if not _stored_question_consistent(item):
+            await exercises_collection.update_one(
+                {"_id": item["_id"]},
+                {"$set": {"verified": False, "reviewed": False, "verification_version": 2}},
+            )
+            continue
+        source_ids = {str(source_id) for source_id in item.get("source_chunk_ids", [])}
+        evidence_chunks = [chunk for chunk in chunks if str(chunk.get("_id")) in source_ids]
+        if not evidence_chunks:
+            await exercises_collection.update_one(
+                {"_id": item["_id"]},
+                {"$set": {"verified": False, "reviewed": False, "verification_version": 2}},
+            )
+            continue
+        is_valid = await verify_stored_question(item, evidence_chunks)
+        update = {"verified": is_valid, "verification_version": 2}
+        if not is_valid:
+            update["reviewed"] = False
+        await exercises_collection.update_one(
+            {"_id": item["_id"]},
+            {"$set": update},
+        )
 
 
 async def ensure_pool(
@@ -155,7 +261,11 @@ async def ensure_pool(
 ) -> None:
     lock = _topic_locks.setdefault(topic, asyncio.Lock())
     async with lock:
-        pool = await _pool_documents(topic)
+        await _verify_pending_questions(topic, chunks)
+        pool = [
+            item for item in await _pool_documents(topic)
+            if item.get("verified") is True and _stored_question_consistent(item)
+        ]
         known = await _known_ids(student_id, topic)
         known_count = len({str(item["_id"]) for item in pool} & known)
         coverage = known_count / len(pool) if pool else 0.0
@@ -166,18 +276,58 @@ async def ensure_pool(
             await _generate_batch(topic, lesson, chunks, config, student_profile)
 
 
-async def select_quiz(student_id: str, topic: str) -> dict[str, Any]:
-    pool = await _pool_documents(topic)
-    answered = await _answered_ids(student_id, topic)
-    candidates = [item for item in pool if str(item["_id"]) not in answered]
+async def select_quiz(
+    student_id: str,
+    topic: str,
+    lesson: dict[str, Any] | None = None,
+    chunks: list[dict[str, Any]] | None = None,
+    config: dict[str, Any] | None = None,
+    student_profile: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    from app.services.content_service import get_topic_chunks
+    from app.prompts.lesson_prompts import LESSON_CONFIGS
 
-    if len(candidates) < QUIZ_SIZE:
-        candidates.extend(item for item in pool if item not in candidates)
+    chunks = chunks if chunks is not None else await get_topic_chunks(topic)
+    config = config if config is not None else LESSON_CONFIGS.get(topic)
+    if not chunks or config is None:
+        raise ValueError("No se pudo obtener el manual para verificar las preguntas de este tema")
 
-    candidates.sort(key=lambda item: (item.get("times_served", 0), item.get("difficulty", 0.5)))
-    selected = candidates[:QUIZ_SIZE]
-    if len(selected) < QUIZ_SIZE:
-        raise ValueError("No hay suficientes preguntas disponibles para este tema")
+    lock = _topic_locks.setdefault(topic, asyncio.Lock())
+    async with lock:
+        await _verify_pending_questions(topic, chunks)
+
+        for _ in range(MAX_GENERATION_BATCHES):
+            pool = [
+                item for item in await _pool_documents(topic)
+                if item.get("verified") is True and _stored_question_consistent(item)
+            ]
+            answered = await _answered_ids(student_id, topic)
+            unseen_count = sum(1 for item in pool if str(item["_id"]) not in answered)
+            if unseen_count >= QUIZ_SIZE:
+                break
+            await _generate_batch(
+                topic,
+                lesson or {"title": topic, "introduction": "", "sections": []},
+                chunks,
+                config,
+                student_profile,
+                question_count=max(QUIZ_SIZE - unseen_count, 1),
+            )
+        pool = [
+            item for item in await _pool_documents(topic)
+            if item.get("verified") is True and _stored_question_consistent(item)
+        ]
+
+        answered = await _answered_ids(student_id, topic)
+        candidates = [item for item in pool if str(item["_id"]) not in answered]
+        if len(candidates) < QUIZ_SIZE:
+            candidates.extend(item for item in pool if item not in candidates)
+
+        candidates = [item for item in candidates if item.get("verified") is True and _stored_question_consistent(item)]
+        candidates.sort(key=lambda item: (item.get("times_served", 0), item.get("difficulty", 0.5)))
+        selected = candidates[:QUIZ_SIZE]
+        if len(selected) < QUIZ_SIZE:
+            raise ValueError("No se pudieron preparar tres preguntas verificadas para este tema. Inténtalo nuevamente más tarde.")
 
     for item in selected:
         await exercises_collection.update_one(

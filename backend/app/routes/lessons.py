@@ -42,7 +42,31 @@ async def create_quiz(
         )
 
     try:
-        return {"quiz": await select_quiz(student.id, topic)}
+        config = LESSON_CONFIGS.get(topic)
+        if config is None:
+            raise ValueError(f"No existe configuración pedagógica para {topic}")
+        chunks = await get_topic_chunks(topic)
+        if not chunks:
+            raise ValueError(f"No existe contenido en MongoDB para {topic}")
+        student_profile = build_student_profile(student, topic)
+        from app.services.lesson_service import generate_lesson
+
+        lesson_result = await generate_lesson(
+            topic=topic,
+            chunks=chunks,
+            config=config,
+            student_profile=student_profile,
+        )
+        return {
+            "quiz": await select_quiz(
+                student.id,
+                topic,
+                lesson=lesson_result["lesson"],
+                chunks=chunks,
+                config=config,
+                student_profile=student_profile,
+            )
+        }
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
 

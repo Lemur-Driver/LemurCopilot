@@ -526,7 +526,10 @@ function Lesson() {
           onRetry={async () => {
             if (!lessonId) return
             const response = await authFetch(`/lessons/${encodeURIComponent(lessonId)}/quiz`, { method: 'POST' })
-            if (!response.ok) throw new Error('No se pudo preparar un nuevo quiz')
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => null)
+              throw new Error(errorData?.detail ?? 'No se pudo preparar un nuevo quiz')
+            }
             const data = await response.json() as { quiz: QuizAssignment }
             if (!data.quiz.sessionId || data.quiz.questions.length !== 3) {
               throw new Error('El servidor no asignó un quiz completo')
@@ -796,7 +799,10 @@ function Lesson() {
               setError(null)
               try {
                 const response = await authFetch(`/lessons/${encodeURIComponent(lessonId)}/quiz`, { method: 'POST' })
-                if (!response.ok) throw new Error('No se pudo preparar el quiz')
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => null)
+                  throw new Error(errorData?.detail ?? 'No se pudo preparar el quiz')
+                }
                 const data = await response.json() as { quiz: QuizAssignment }
                 if (!data.quiz.sessionId || data.quiz.questions.length !== 3) {
                   throw new Error('El servidor no asignó un quiz completo')

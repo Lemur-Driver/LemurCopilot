@@ -144,6 +144,15 @@ async def submit_quiz_answer(request: QuizAnswerRequest, student: Student = Depe
         raise HTTPException(status_code=400, detail="La opcion seleccionada no es valida")
 
     correct_index = exercise.get("correct_index")
+    if (
+        exercise.get("verified") is not True
+        or not isinstance(correct_index, int)
+        or isinstance(correct_index, bool)
+        or not 0 <= correct_index < len(exercise.get("options", []))
+        or exercise.get("correct_answer") != exercise["options"][correct_index]
+    ):
+        raise HTTPException(status_code=409, detail="Esta pregunta requiere revisión y no puede calificarse")
+
     answer_record = {
         "exercise_id": request.exerciseId,
         "question": exercise["question"],
