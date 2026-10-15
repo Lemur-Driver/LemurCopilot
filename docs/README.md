@@ -19,6 +19,7 @@ LemurCopilot es una plataforma de aprendizaje que combina un modelo del conocimi
 | 07 | [Flujos end-to-end](./07-flujos-end-to-end.md) | Diagramas de secuencia de los flujos principales del sistema. |
 | 08 | [Despliegue y configuración](./08-despliegue-y-configuracion.md) | Docker Compose, variables de entorno y ejecución local. |
 | 09 | [Docker Worker de contenido pre-generado](./09-worker-contenido.md) | Componentes, flujo de generación, colecciones MongoDB, ejecución y publicación de contenido. |
+| 10 | [Agente adaptativo con LangGraph](./10-agente-langgraph.md) | Estado actual aislado, perfil de mastery, nodos, grafo, pruebas y ruta de integración futura con contenido publicado y LLM. |
 
 ---
 
