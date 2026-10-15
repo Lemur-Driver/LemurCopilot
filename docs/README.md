@@ -18,6 +18,7 @@ LemurCopilot es una plataforma de aprendizaje que combina un modelo del conocimi
 | 06 | [Referencia de API REST](./06-api-rest.md) | Todos los endpoints: contratos de request/response y ejemplos. |
 | 07 | [Flujos end-to-end](./07-flujos-end-to-end.md) | Diagramas de secuencia de los flujos principales del sistema. |
 | 08 | [Despliegue y configuración](./08-despliegue-y-configuracion.md) | Docker Compose, variables de entorno y ejecución local. |
+| 09 | [Docker Worker de contenido pre-generado](./09-worker-contenido.md) | Componentes, flujo de generación, colecciones MongoDB, ejecución y publicación de contenido. |
 
 ---
 

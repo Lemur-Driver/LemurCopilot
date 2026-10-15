@@ -151,7 +151,7 @@ docker compose run --rm content-worker --failed
 docker compose run --rm content-worker --topic C1.1 --force
 ```
 
-Cada ejecución crea o actualiza `content_jobs` y almacena estado, error, duración y conteos. Los releases comienzan en `building` y alcanzan `ready` solo al procesar todos sus temas. Las lecciones y preguntas aprobadas quedan en `ready`; esta primera etapa todavía no activa releases ni cambia la API del estudiante. El mínimo de preguntas es 10 por tema y puede ajustarse con `CONTENT_WORKER_MINIMUM_QUESTIONS`.
+Cada ejecución crea o actualiza `content_jobs` y almacena estado, error, duración y conteos. Los releases comienzan en `building` y alcanzan `ready` al completar los temas esperados. El worker deja lecciones y preguntas verificadas en `ready`; la validación y publicación se ejecutan aparte mediante `manage_content.py`. El mínimo predeterminado es 15 preguntas verificadas por tema y puede ajustarse con `CONTENT_WORKER_MINIMUM_QUESTIONS`. Consulta [09 · Docker Worker de contenido pre-generado](./09-worker-contenido.md) para el flujo completo.
 
 ### Ingesta / re-ingesta del manual
 

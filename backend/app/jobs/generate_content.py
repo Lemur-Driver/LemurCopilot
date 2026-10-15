@@ -260,7 +260,7 @@ async def _process_topic(topic: str, release_id: str, content_version: str, forc
             break
 
         requested = min(
-            5,
+            2,
             QUESTION_POOL_MINIMUM - len(existing_questions),
         )
 
