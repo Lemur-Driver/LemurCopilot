@@ -546,12 +546,6 @@ Recuerda:
         json_mode=True,
     )
 
-
-    response = await generate_text(
-        prompt,
-        json_mode=True,
-    )
-
     quiz = await _parse_quiz_response(
         response,
         expected_count=question_count,

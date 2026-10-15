@@ -105,12 +105,17 @@ LESSON_CONFIGS = {
 
         "teaching_strategy": """
         Presenta las cifras únicamente cuando estén claramente
-        respaldadas por el contexto.
+        respaldadas por el contexto y conserva su población exacta
+        (por ejemplo, personas conductoras fallecidas no equivale a
+        todas las personas fallecidas).
 
         Explica qué significan las estadísticas en términos de
-        riesgo y prevención.
+        riesgo y prevención. Distingue la cantidad de siniestros,
+        fallecimientos y lesiones: sus distribuciones geográficas
+        pueden ser diferentes sin contradecirse.
 
-        No infieras relaciones que no estén expresadas en el manual.
+        No infieras relaciones que no estén expresadas en el manual
+        ni agregues ejemplos numéricos hipotéticos.
         """,
 
         "lesson_focus": [
@@ -1377,13 +1382,18 @@ REGLAS DE FIDELIDAD:
 
 2. No inventes leyes, cifras, recomendaciones, relaciones,
    ejemplos numéricos o conceptos que no estén explícitamente
-   respaldados por el contexto.
+   respaldados por el contexto. No cambies el sujeto, la población,
+   el indicador, el periodo ni la ubicación de una cifra: por ejemplo,
+   "personas conductoras fallecidas" no significa "todas las personas fallecidas".
 
 3. Puedes reformular y explicar el contenido, pero no agregar
-   conocimiento externo.
+   conocimiento externo. Conserva las condiciones y calificadores de
+   cada afirmación: "aproximadamente", "en promedio", "en vías urbanas"
+   y expresiones similares no se deben eliminar ni ampliar.
 
 4. NO realices nuevos cálculos a partir de cifras encontradas
-   en el contexto, aunque matemáticamente parezcan evidentes.
+   en el contexto, aunque matemáticamente parezcan evidentes. Tampoco
+   conviertas una cifra aproximada en una afirmación exacta.
 
 5. Utiliza ejemplos numéricos únicamente cuando la relación
    completa esté expresada explícitamente en el texto.
@@ -1396,7 +1406,12 @@ REGLAS DE FIDELIDAD:
 
 7. No infieras relaciones entre porcentajes, cifras, gráficos,
    tablas o categorías si el contexto no establece explícitamente
-   esa relación.
+   esa relación. Mantén separadas las métricas distintas: cantidad de
+   siniestros, cantidad de personas fallecidas y cantidad de personas
+   lesionadas no son intercambiables. Por ejemplo, que la mayoría de los
+   siniestros ocurra en zonas urbanas no determina dónde ocurre la mayoría
+   de los fallecimientos; puedes presentar ambas cifras si el manual las
+   respalda, explicándolas como indicadores distintos.
 
 8. Si una afirmación no puede respaldarse claramente con el
    contexto entregado, no la incluyas.

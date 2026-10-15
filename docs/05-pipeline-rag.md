@@ -169,15 +169,15 @@ flowchart TB
 | Recuperación | Todos los chunks del tema | Top-5 por similitud |
 | Salida | JSON validado (lección + quiz) | Texto en streaming |
 
-### 5.5.1 Pool adaptativo de preguntas
+### 5.5.1 Pool de preguntas pre-generado
 
-El quiz no se genera siempre desde cero. Para cada `topic`, el backend consulta el pool compartido de `exercises` y las respuestas históricas del estudiante. Una pregunta cuenta como conocida después de una respuesta correcta.
+El worker genera y verifica un pool por tema dentro de un release, usando el contexto del manual y la lección `standard` del mismo release. Las preguntas válidas se escriben con `status: ready`; `manage_content validate` verifica que el pool alcance el mínimo configurado (15 por defecto) y `publish` las hace disponibles mediante `content_catalog`.
 
-Si el estudiante conoce al menos el 80% del pool, si el pool está vacío o si no quedan tres preguntas nuevas, se genera un lote adicional usando el contexto RAG del manual. Las preguntas pasan validación estructural y deduplicación por fingerprint y similitud textual antes de publicarse para todos los usuarios.
+En runtime, `POST /lessons/{topic}/quiz` resuelve el release publicado y selecciona tres preguntas con `status: published` y `verified: true`. La consulta no genera preguntas, no verifica documentos legacy y no llama al LLM. Si no hay release activo o quedan menos de tres preguntas elegibles, responde `503`; el pool debe volver a generarse y publicarse con el worker.
 
-Cada pregunta entregada lleva un `exerciseId`. Al completar el quiz, el backend recalcula la corrección contra `exercises`, registra la respuesta en `sessions` y actualiza el mastery del estudiante. El cliente no es la fuente de verdad de la respuesta correcta.
+Cada pregunta entregada lleva un `exerciseId`. Al completar el quiz, el backend corrige contra `exercises`, registra la respuesta en `sessions` y actualiza el mastery. El cliente no es la fuente de verdad de la respuesta correcta.
 
-Desde la versión de verificación 2, una pregunta nueva solo se publica si supera controles estructurales y un segundo llamado al LLM contra la evidencia indicada del manual. El generador incluye texto de respuesta, índice y referencias con página, chunk e identificación literal de la cita. El backend comprueba que índice y texto coincidan, que las citas existan en los chunks declarados y que las alternativas sean distintas; luego el verificador determina si la pregunta tiene una única respuesta respaldada y si la explicación es coherente. Si falla algún control, la pregunta no se publica. Al solicitar un quiz se revisan hasta tres preguntas legacy pendientes por tema; las que no pasan quedan `verified: false` y `reviewed: false`, por lo que no se asignan. El sistema intenta generar lotes verificados hasta tres veces para reunir tres preguntas; si no lo consigue, devuelve un error en lugar de servir preguntas sin verificar.
+Durante la generación, cada pregunta debe superar validaciones estructurales, citas literales de chunks del tema, deduplicación por fingerprint/similitud y verificación semántica independiente. Para `C1.1`, además se requiere aprobación manual antes de publicar.
 | Fuentes devueltas | Páginas deduplicadas del tema | Páginas deduplicadas de los chunks usados |
 
 ---

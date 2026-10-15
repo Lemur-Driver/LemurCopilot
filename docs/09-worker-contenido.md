@@ -50,8 +50,8 @@ El worker comparte `backend/Dockerfile`, el archivo `.env` y el montaje de `./ba
 |---|---|
 | [`compose.yaml`](../compose.yaml) | Define `content-worker`, su imagen, entorno y comando. El servicio pertenece al perfil `jobs`, por lo que no se inicia con el arranque ordinario del stack. |
 | [`backend/Dockerfile`](../backend/Dockerfile) | Construye la imagen Python usada tanto por el backend como por el worker. |
-| [`backend/app/jobs/generate_content.py`](../backend/app/jobs/generate_content.py) | Punto de entrada del worker: interpreta opciones, crea/recupera el release, procesa temas, genera y verifica lecciones y preguntas y registra resultados y errores. |
-| [`backend/app/prompts/lesson_prompts.py`](../backend/app/prompts/lesson_prompts.py) | Define `LESSON_SEQUENCE`, que enumera los temas procesables, y `LESSON_CONFIGS`, con objetivos, estrategias, focos de lección y quiz por tema. |
+| [`backend/app/jobs/generate_content.py`](../backend/app/jobs/generate_content.py) | Punto de entrada del worker: interpreta opciones, crea/recupera el release, procesa temas, genera y verifica lecciones y preguntas y registra resultados y errores. El criterio de verificación factual de lecciones se versiona aparte de la verificación de preguntas. |
+| [`backend/app/prompts/lesson_prompts.py`](../backend/app/prompts/lesson_prompts.py) | Define `LESSON_SEQUENCE`, `LESSON_CONFIGS` y `BASE_LESSON_PROMPT`; los prompts fijan los objetivos pedagógicos y las reglas de fidelidad a las fuentes. |
 | [`backend/app/services/content_service.py`](../backend/app/services/content_service.py) | Lee de `manual_chunks` los fragmentos del tema, ordenados por página y número de fragmento. |
 | [`backend/app/services/lesson_service.py`](../backend/app/services/lesson_service.py) | Construye el contexto y prompt de la lección, llama al LLM, convierte su respuesta a JSON y normaliza/valida su forma. |
 | [`backend/app/services/question_pool_service.py`](../backend/app/services/question_pool_service.py) | Coordina la generación de lotes y la persistencia/deduplicación de preguntas en `exercises`. El worker reutiliza su función `_generate_batch`. |
@@ -60,6 +60,22 @@ El worker comparte `backend/Dockerfile`, el archivo `.env` y el montaje de `./ba
 | [`backend/app/database.py`](../backend/app/database.py) | Comparte el cliente MongoDB y declara las colecciones e índices usados por el worker. |
 | [`backend/app/jobs/manage_content.py`](../backend/app/jobs/manage_content.py) | CLI administrativa: lista releases, verifica contenido heredado, gestiona la revisión manual, valida y publica. No genera el contenido normal del tema. |
 | [`backend/app/services/content_release_service.py`](../backend/app/services/content_release_service.py) | Comprueba que el release tenga lección y pool suficientes; publica los documentos y actualiza el catálogo de contenido publicado. |
+
+### Pool de preguntas disponible en el quiz online
+
+La generación ya no ocurre en las rutas usadas por el estudiante. El worker genera las preguntas del release con el contexto RAG de `manual_chunks`, las verifica y las deja en estado `ready`; después de validar y publicar el release, `/lessons/{topic}/quiz` selecciona tres preguntas verificadas del `release_id` activo. Si el release no está publicado o no contiene al menos tres preguntas elegibles, la API devuelve `503` con un mensaje para generar/publicar contenido, sin invocar al LLM.
+
+La verificación de lecciones contrasta sujeto, indicador, población, periodo y ubicación con los fragmentos; no considera contradictorio que las distribuciones de siniestros y fallecimientos difieran, y sí busca cambios indebidos de alcance en cifras. Los prompts de generación piden conservar esos alcances y evitar cifras hipotéticas. Cada versión de prompt y de verificador se registra en el documento generado. Una lección previamente aprobada con versiones anteriores se vuelve a generar y verificar al reintentar el mismo release; las preguntas verificadas ya guardadas se conservan.
+
+Por ejemplo, para generar y publicar un tema:
+
+```powershell
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1
+docker compose run --rm content-worker python -m app.jobs.manage_content validate release-XXXXXXXXXXXX
+docker compose run --rm content-worker python -m app.jobs.manage_content publish release-XXXXXXXXXXXX
+```
+
+Para `C1.1`, completa además la revisión manual requerida antes de validar/publicar. El mínimo de preguntas publicables sigue siendo 15 por defecto y se controla con `CONTENT_WORKER_MINIMUM_QUESTIONS`.
 
 ### Cómo se conectan durante una generación
 
@@ -100,17 +116,16 @@ Requisitos: Docker Compose, `.env` con `MONGODB_URI`, `MONGODB_DATABASE` y la co
 
 ```powershell
 # Generar un tema (crea un release nuevo si no se indica uno)
-docker compose run --rm content-worker --topic C1.1
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1
 
 # Procesar todos los temas de LESSON_SEQUENCE
-docker compose run --rm content-worker --all
+docker compose run --rm content-worker python -m app.jobs.generate_content --all
 
 # Reintentar los temas registrados como fallidos
-docker compose run --rm content-worker --failed
+docker compose run --rm content-worker python -m app.jobs.generate_content --failed
 
 # Regenerar el tema en un release: marca preguntas previas superseded
-# y elimina las lecciones previas de ese tema/release
-docker compose run --rm content-worker --topic C1.1 --release-id release-XXXXXXXXXXXX --force
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1 --release-id release-XXXXXXXXXXXX --force
 ```
 
 Opciones principales:
@@ -122,9 +137,51 @@ Opciones principales:
 - `--content-version VERSION`: define la versión del contenido; por defecto usa `CONTENT_VERSION` (actualmente `conaset-clase-b-2026-10`).
 - `--force`: regenera el contenido del tema para ese release. No debe usarse sin considerar que marca las preguntas existentes de ese ámbito como `superseded` y elimina sus lecciones generadas.
 
-La cantidad mínima requerida de preguntas verificadas es **15 por tema** por defecto. Se puede cambiar con `CONTENT_WORKER_MINIMUM_QUESTIONS`. El generador solicita lotes pequeños (hasta dos preguntas) y prueba un máximo de diez lotes por ejecución del tema; si no llega al mínimo, el trabajo se registra como fallido por pool insuficiente.
+La cantidad objetivo de preguntas verificadas es **15 por tema** por defecto. El worker genera lotes de hasta dos preguntas y continúa hasta alcanzar esa meta, agotar el tiempo configurado o llegar al máximo de lotes. Las preguntas verificadas se guardan en MongoDB inmediatamente en `status: ready`; si vence un límite antes de alcanzar la meta, el trabajo figura como fallido, pero las preguntas válidas permanecen en el release. Reintentar el mismo tema y release reutiliza esas preguntas y genera solo las que faltan; no uses `--force`, pues supersede preguntas existentes y elimina las lecciones de ese tema/release.
+
+| Opción | Predeterminado | Significado |
+|---|---:|---|
+| `--question-minimum N` | `CONTENT_WORKER_MINIMUM_QUESTIONS` (15) | Meta de preguntas verificadas por tema. |
+| `--question-time-limit SEGUNDOS` | `CONTENT_WORKER_QUESTION_TIME_LIMIT_SECONDS` (1800) | Presupuesto de tiempo para el pool por tema; `0` desactiva este límite. Cada lote en curso se interrumpe al agotarse. |
+| `--question-timeout SEGUNDOS` | `CONTENT_WORKER_QUESTION_TIMEOUT_SECONDS` (150) | Tiempo máximo para completar un lote, incluso si queda presupuesto global. |
+| `--max-question-batches N` | `CONTENT_WORKER_MAX_QUESTION_BATCHES` (50) | Máximo adicional de lotes; `0` lo desactiva. |
+
+Las cuatro variables de entorno se configuran en el servicio `content-worker` de Compose y pueden sobrescribirse en `.env`. Ejemplo para probar un pool de 15 preguntas durante hasta 60 minutos, con máximo de 120 lotes y timeout de 4 minutos por lote:
+
+```powershell
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1 --question-time-limit 3600 --question-timeout 240 --max-question-batches 120
+```
+
+Al terminar el tiempo o los lotes sin alcanzar la meta, toma el `release_id` de la última línea `Falló el trabajo del tema` en el registro del worker o de `list-releases`, y vuelve a ejecutar el mismo tema con `--release-id ID`; para reanudar fallos en general se puede usar `--failed`. Ambos caminos conservan las preguntas verificadas. Para reanudar un release específico entre varios fallidos, combina `--failed --release-id ID`. La reanudación no evita la generación de lecciones rechazadas: primero debe existir una lección `standard` verificada. Puedes bajar la meta de preguntas con `--question-minimum` durante pruebas; la validación/publicación también debe usar el mismo mínimo, por ejemplo `docker compose run --rm content-worker python -m app.jobs.manage_content validate ID --minimum-questions 5`.
 
 > `--all` implica generar secuencialmente todos los temas de `LESSON_SEQUENCE`; puede tomar tiempo y generar llamadas LLM para lecciones, verificaciones y preguntas. Conviene probar primero con `--topic`.
+
+### Diagrama del ciclo de generación y reanudación
+
+```mermaid
+flowchart TD
+    A[Iniciar worker para tema y release] --> B[Generar o reutilizar lecciones]
+    B --> C{¿Hay lección standard verificada?}
+    C -- No --> X[Marcar trabajo fallido; no generar preguntas]
+    C -- Sí --> D[Cargar preguntas ready y verified del mismo release]
+    D --> E{¿Meta ya alcanzada?}
+    E -- Sí --> P[Marcar tema listo]
+    E -- No --> F{¿Queda tiempo y presupuesto de lotes?}
+    F -- No --> R[Guardar conteo; marcar trabajo incompleto/fallido]
+    F -- Sí --> G[Generar lote de hasta 2 preguntas]
+    G --> H[Validar estructura, citas y evidencia]
+    H --> I{¿Pregunta aprobada?}
+    I -- Sí --> J[Guardar en MongoDB como ready y verified]
+    I -- No --> K[Guardar como rejected; conservar motivo]
+    J --> L[Actualizar conteo desde MongoDB]
+    K --> L
+    L --> E
+    R --> M[Reintentar mismo tema y release; sin --force]
+    M --> D
+    P --> N{¿Requiere revisión manual?}
+    N -- C1.1 --> O[Revisar preguntas y luego validar/publicar release]
+    N -- Otro tema --> O
+```
 
 ## Revisión y publicación
 
@@ -137,11 +194,14 @@ docker compose run --rm content-worker python -m app.jobs.manage_content list-re
 # Ver la cola de revisión manual del piloto
 docker compose run --rm content-worker python -m app.jobs.manage_content review-queue --release-id release-XXXXXXXXXXXX
 
-# Validar que el release cumpla sus requisitos
+# Validar que el release cumpla sus requisitos (mínimo predeterminado: 15)
 docker compose run --rm content-worker python -m app.jobs.manage_content validate release-XXXXXXXXXXXX
 
+# Validar con otro mínimo si se generó con --question-minimum N
+docker compose run --rm content-worker python -m app.jobs.manage_content validate release-XXXXXXXXXXXX --minimum-questions 5
+
 # Publicar un release que esté listo
-docker compose run --rm content-worker python -m app.jobs.manage_content publish release-XXXXXXXXXXXX
+docker compose run --rm content-worker python -m app.jobs.manage_content publish release-XXXXXXXXXXXX --minimum-questions 5
 ```
 
 Para publicar, la validación exige una lección `standard` verificada y al menos el mínimo de preguntas elegibles por tema. Para `C1.1`, además se debe completar la verificación/revisión piloto configurada. La publicación actualiza en una transacción los estados de lección y pregunta, el release y `content_catalog`; ese catálogo permite que la aplicación resuelva cuál release publicado servir por tema.

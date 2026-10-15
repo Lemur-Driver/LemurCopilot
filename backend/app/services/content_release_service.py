@@ -3,14 +3,41 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from bson import ObjectId
+
 from app.database import (
-    content_releases_collection,
     content_catalog_collection,
+    content_chunks_collection,
+    content_releases_collection,
     exercises_collection,
     generated_lessons_collection,
 )
 
 CATALOG_ID = "published"
+
+
+async def _published_sources(document: dict[str, Any]) -> list[dict[str, Any]]:
+    source_ids = document.get("source_chunk_ids", [])
+    if not source_ids:
+        return []
+    chunk_ids = [
+        ObjectId(source_id) if isinstance(source_id, str) and ObjectId.is_valid(source_id) else source_id
+        for source_id in source_ids
+    ]
+
+    chunks = await content_chunks_collection.find(
+        {"_id": {"$in": chunk_ids}},
+        {"title": 1, "page": 1},
+    ).to_list()
+    seen: set[tuple[str, str]] = set()
+    sources = []
+    for chunk in chunks:
+        key = (str(chunk.get("title", "")), str(chunk.get("page", "")))
+        if key in seen:
+            continue
+        seen.add(key)
+        sources.append({"title": chunk.get("title"), "page": chunk.get("page")})
+    return sources
 
 
 def merge_published_topics(
@@ -53,11 +80,15 @@ async def get_published_release_id(topic: str) -> str | None:
     )
 
 
-async def get_published_lesson(topic: str, variant: str = "standard") -> dict[str, Any] | None:
-    release_id = await get_published_release_id(topic)
+async def get_published_lesson(
+    topic: str,
+    variant: str = "standard",
+    release_id: str | None = None,
+) -> dict[str, Any] | None:
+    release_id = release_id or await get_published_release_id(topic)
     if not release_id:
         return None
-    return await generated_lessons_collection.find_one({
+    lesson = await generated_lessons_collection.find_one({
         "topic": topic,
         "language": "es",
         "release_id": release_id,
@@ -65,6 +96,9 @@ async def get_published_lesson(topic: str, variant: str = "standard") -> dict[st
         "status": "published",
         "verified": True,
     })
+    if lesson:
+        lesson["sources"] = await _published_sources(lesson)
+    return lesson
 
 
 async def validate_release(release_id: str, minimum_questions: int) -> list[str]:

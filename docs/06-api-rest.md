@@ -16,8 +16,8 @@
 | GET | `/` | Saludo de la API | ✅ Activo |
 | GET | `/health` | Healthcheck | ✅ Activo |
 | POST | `/auth/google` | Login con Google (verifica `id_token`) | ✅ Activo |
-| POST | `/lessons/generate/{topic}` | Genera la lección de un tema | ✅ Activo (core) |
-| POST | `/lessons/{topic}/quiz` | Asigna un quiz del pool al estudiante | ✅ Activo (core) |
+| POST | `/lessons/generate/{topic}` | Genera la lección de un tema en línea (compatibilidad temporal) | ✅ Activo (legacy) |
+| POST | `/lessons/{topic}/quiz` | Asigna tres preguntas del release publicado; no genera contenido | ✅ Activo (core) |
 | POST | `/chat/stream` | Chat tutor con streaming NDJSON | ✅ Activo (core) |
 | POST | `/rag/search` | Búsqueda semántica en el manual | 🧪 Exploración |
 | POST | `/rag/ask` | QA directa sobre el manual | 🧪 Exploración |
@@ -85,7 +85,7 @@ Verifica criptográficamente el `id_token` emitido por Google Identity Services 
 
 ### `POST /lessons/generate/{topic}`
 
-Genera la mini-lección en vivo y prepara el pool de preguntas del tema. La asignación concreta del quiz se realiza mediante `POST /lessons/{topic}/quiz`, que crea una sesión vinculada al estudiante. La respuesta de generación no contiene el quiz. Sin cuerpo en el request; todo va en el path.
+Genera la mini-lección en vivo y no genera preguntas. El pool se prepara fuera de línea con `content-worker`; la asignación concreta del quiz se realiza mediante `POST /lessons/{topic}/quiz`. Sin cuerpo en el request; todo va en el path.
 
 **Parámetros de ruta:** `topic` — código del tema (`C1.1`, `C1.2`, `C2.1`, `C2.2`, `C2.3`, …). Debe existir:
 1. en `LESSON_CONFIGS` (configuración pedagógica), y
@@ -131,11 +131,13 @@ curl -X POST http://localhost:8000/lessons/generate/C1.1
 | `400` | `topic` sin configuración pedagógica o sin contenido en MongoDB. Mensaje explicativo en `detail`. |
 | `500` | El LLM devolvió JSON inválido/estructura no conforme, o fallo interno (detalle genérico, error logueado en servidor). |
 
-> ⏱️ **Latencia:** normalmente involucra una llamada al LLM para la lección. Solo se añade una llamada para generar preguntas cuando el pool está vacío, agotado o supera el umbral de cobertura.
+> ⏱️ **Latencia:** generar la mini-lección puede involucrar una llamada al LLM. La generación y verificación del pool se realiza previamente con `content-worker`, no durante una petición de quiz.
 
 ### `POST /lessons/{topic}/quiz`
 
-Asigna al estudiante autenticado tres preguntas del pool y crea una sesión de quiz. Las preguntas devueltas incluyen `exerciseId`, `question` y `options`; la clave correcta y la explicación no se envían antes de responder.
+Asigna al estudiante autenticado tres preguntas verificadas del release publicado y crea una sesión de quiz. Este endpoint no llama al LLM ni genera preguntas. Las preguntas devueltas incluyen `exerciseId`, `question` y `options`; la clave correcta y la explicación no se envían antes de responder.
+
+Si no hay un release publicado o no contiene tres preguntas elegibles, responde `503`. Genera el pool con `content-worker`, completa la revisión manual requerida para `C1.1`, valida el release y publícalo antes de iniciar quizzes.
 
 **Response `200 OK`:**
 

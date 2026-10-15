@@ -145,13 +145,13 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 El worker comparte imagen, variables y conexión MongoDB con FastAPI, pero se invoca explícitamente y no se levanta durante `docker compose up`:
 
 ```bash
-docker compose run --rm content-worker --topic C1.1
-docker compose run --rm content-worker --all
-docker compose run --rm content-worker --failed
-docker compose run --rm content-worker --topic C1.1 --force
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1
+docker compose run --rm content-worker python -m app.jobs.generate_content --all
+docker compose run --rm content-worker python -m app.jobs.generate_content --failed
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1 --force
 ```
 
-Cada ejecución crea o actualiza `content_jobs` y almacena estado, error, duración y conteos. Los releases comienzan en `building` y alcanzan `ready` al completar los temas esperados. El worker deja lecciones y preguntas verificadas en `ready`; la validación y publicación se ejecutan aparte mediante `manage_content.py`. El mínimo predeterminado es 15 preguntas verificadas por tema y puede ajustarse con `CONTENT_WORKER_MINIMUM_QUESTIONS`. Consulta [09 · Docker Worker de contenido pre-generado](./09-worker-contenido.md) para el flujo completo.
+Cada ejecución crea o actualiza `content_jobs` y almacena estado, error, duración y conteos. Los releases comienzan en `building` y alcanzan `ready` al completar los temas esperados. El worker deja lecciones y preguntas verificadas en `ready`; la validación y publicación se ejecutan aparte mediante `manage_content.py`. El pool apunta por defecto a 15 preguntas verificadas por tema (`CONTENT_WORKER_MINIMUM_QUESTIONS`) y puede ejecutarse con límites de tiempo, tiempo por lote y cantidad máxima de lotes; un reintento con el mismo release conserva las preguntas válidas y completa el pool. Consulta [09 · Docker Worker de contenido pre-generado](./09-worker-contenido.md) para opciones y diagrama del flujo.
 
 ### Ingesta / re-ingesta del manual
 

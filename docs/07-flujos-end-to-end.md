@@ -48,9 +48,9 @@ sequenceDiagram
 
 ---
 
-## 7.2 Flujo de generación de lección + quiz
+## 7.2 Flujo de contenido publicado y quiz
 
-Este es el flujo pedagógico central: una sola petición del frontend desencadena **dos llamadas al LLM** y dos validaciones.
+La lección se genera durante el ciclo offline del worker; el frontend lee su versión publicada y solicita por separado tres preguntas del pool publicado. Las peticiones del estudiante no generan preguntas ni llaman al LLM para crear el pool.
 
 ```mermaid
 sequenceDiagram
@@ -58,55 +58,46 @@ sequenceDiagram
     participant U as 👤 Estudiante
     participant FE as Frontend (Lesson.tsx)
     participant BE as Backend (/lessons)
-    participant DB as 🗄️ manual_chunks
+    participant DB as 🗄️ MongoDB
     participant LLM as 🤖 LLM
+    participant Worker as ⚙️ content-worker
 
-    U->>FE: Clic en LessonCard (C1.1)
+    rect rgb(245, 245, 245)
+        Note over Worker,DB: Preparación offline, previa al acceso del estudiante
+        Worker->>DB: Leer manual_chunks y configuración del tema
+        Worker->>Worker: Generar y verificar lecciones y pool de preguntas
+        Worker->>DB: Guardar release en ready
+        Worker->>DB: Validar y publicar release; actualizar content_catalog
+    end
+    U->>FE: Abre clase (C1.1)
     FE->>FE: Busca clase en course.ts
-    alt Clase no existe en el temario
-        FE-->>U: 🚧 "Clase no encontrada"
-    end
-    FE->>FE: setLoading(true) → LemurLoader
-    FE->>BE: POST /lessons/generate/C1.1 (AbortController)
-    BE->>BE: config = LESSON_CONFIGS["C1.1"]
-    alt Sin configuración pedagógica
-        BE-->>FE: 400 "No existe configuración…"
-        FE-->>U: Mensaje de error + reintento
-    end
-    BE->>DB: find({topic:"C1.1"}) sin embedding, ordenado
-    alt Sin chunks en MongoDB
-        DB-->>BE: []
-        BE-->>FE: 400 "No existe contenido…"
-    end
-    DB-->>BE: chunks[] (texto + página)
-    BE->>LLM: generate_text(BASE_LESSON_PROMPT + objetivo<br/>+ estrategia + focos + contexto)
-    LLM-->>BE: texto JSON (lección)
-    BE->>BE: limpiar → parsear → normalizar → validar
-    alt JSON inválido o estructura no conforme
-        BE-->>FE: 500 "No se pudo generar la lección"
-    end
-    BE->>DB: Lee pool del topic e historial del estudiante
-    alt Pool vacío, cobertura >= 80% o menos de 3 preguntas nuevas
-        BE->>LLM: generate_text(BASE_QUIZ_PROMPT + lección + contexto)
-        LLM-->>BE: lote JSON de preguntas
-        BE->>BE: validar → fingerprint → deduplicar
-        BE->>DB: Publicar preguntas para todos
-    end
-    BE->>DB: Seleccionar 3 preguntas con exerciseId
-    BE-->>FE: 200 { topic, lesson, quiz, sources }
+    FE->>BE: POST /lessons/generate/C1.1
+    BE->>DB: Resolver release publicado y leer lección standard
+    DB-->>BE: Lección + fuentes
+    BE-->>FE: 200 { topic, lesson, sources }
     FE->>FE: Renderiza lección + fuentes citadas
     U->>FE: Clic "Tomar quiz"
-    FE->>FE: Monta <Quiz/> con exerciseId
-    U->>FE: Responde las 3 preguntas
-    FE->>BE: POST /students/me/quiz-results
-    BE->>DB: Recalcular respuestas, actualizar mastery y guardar session
+    FE->>BE: POST /lessons/C1.1/quiz
+    BE->>DB: Resolver release activo y seleccionar preguntas publicadas verificadas
+    alt No hay release o pool elegible insuficiente
+        BE-->>FE: 503; generar/publicar pool con content-worker
+    else Pool disponible
+        BE->>DB: Guardar sesión con release_id y preguntas asignadas
+        BE-->>FE: quiz { sessionId, questions }
+        FE->>FE: Monta <Quiz/> con exerciseId
+        U->>FE: Responde las 3 preguntas
+        FE->>BE: POST /students/me/quiz-answer (por pregunta)
+        BE->>DB: Corregir contra ejercicio asignado
+        FE->>BE: POST /students/me/quiz-results
+        BE->>DB: Actualizar mastery y finalizar sesión
+    end
 ```
 
 **Puntos clave:**
-- La petición es **abortable**: si el usuario navega fuera, `AbortController` cancela el `fetch`.
+- El worker genera preguntas RAG y las deja en `ready`; la validación y publicación las hacen elegibles para el estudiante.
 - Las **fuentes** (páginas del manual) viajan deduplicadas para citación en la UI.
+- El endpoint online asigna solamente preguntas del release activo, verificadas y publicadas; no invoca al LLM.
 - El backend corrige las respuestas usando el pool persistido; el cliente solo envía `exerciseId` y `selectedIndex`.
-- Las preguntas nuevas quedan disponibles para todos después de validarse y deduplicarse.
 
 ---
 

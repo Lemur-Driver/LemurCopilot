@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import re
 from datetime import datetime, timezone
@@ -10,11 +9,8 @@ from bson import ObjectId
 
 from app.database import exercises_collection, sessions_collection
 
-POOL_THRESHOLD = 0.8
 QUIZ_SIZE = 3
-MAX_GENERATION_BATCHES = 3
 SIMILARITY_THRESHOLD = 0.88
-_topic_locks: dict[str, asyncio.Lock] = {}
 
 
 def normalize_question(value: str) -> str:
@@ -57,57 +53,15 @@ async def _answered_ids(student_id: str, topic: str) -> set[str]:
     return answered
 
 
-async def _known_ids(student_id: str, topic: str) -> set[str]:
-    cursor = sessions_collection.find(
-        {
-            "student_id": ObjectId(student_id),
-            "quiz_topic": topic,
-            "answers": {"$elemMatch": {"exercise_id": {"$exists": True}, "is_correct": True}},
-        },
-        {"answers": 1},
-    )
-    known: set[str] = set()
-    async for session in cursor:
-        for answer in session.get("answers", []):
-            if answer.get("exercise_id") and answer.get("is_correct"):
-                known.add(str(answer["exercise_id"]))
-    return known
-
-
-async def _pool_documents(
-    topic: str,
-    release_id: str | None = None,
-) -> list[dict[str, Any]]:
-
-    query: dict[str, Any] = {
+async def _pool_documents(topic: str, release_id: str) -> list[dict[str, Any]]:
+    return await exercises_collection.find({
         "topic": topic,
         "language": "es",
-    }
-
-    if release_id is not None:
-        # Worker construyendo una release.
-        query["release_id"] = release_id
-        query["status"] = {
-            "$in": ["ready", "published"]
-        }
-
-    else:
-        # Runtime: solamente contenido publicado.
-        from app.services.content_release_service import (
-            get_published_release_id,
-        )
-
-        published_release_id = (
-            await get_published_release_id(topic)
-        )
-
-        if not published_release_id:
-            return []
-
-        query["release_id"] = published_release_id
-        query["status"] = "published"
-
-    return await exercises_collection.find(query).to_list()
+        "release_id": release_id,
+        "status": "published",
+        "verified": True,
+        "$or": [{"review_status": None}, {"review_status": "approved"}],
+    }).to_list()
 
 
 def _stored_question_consistent(item: dict[str, Any]) -> bool:
@@ -139,7 +93,7 @@ async def _is_duplicate(
     options: list[str],
     existing: list[dict[str, Any]],
     correct_index: int,
-    release_id: str | None = None,
+    release_id: str,
 ) -> bool:
 
     fingerprint = question_fingerprint(
@@ -178,14 +132,19 @@ async def _publish_questions(
     questions: list[dict[str, Any]],
     chunks: list[dict[str, Any]],
     *,
-    release_id: str | None = None,
+    release_id: str,
     content_version: str | None = None,
     prompt_version: str | None = None,
     verification_version: str | int = 2,
 ) -> int:
     existing = [
-        item for item in await _pool_documents(topic, release_id)
-        if item.get("verified") is True
+        item for item in await exercises_collection.find({
+            "topic": topic,
+            "language": "es",
+            "release_id": release_id,
+            "status": {"$in": ["ready", "published"]},
+            "verified": True,
+        }).to_list()
     ]
     published = 0
     chunks_by_ref = {
@@ -198,18 +157,15 @@ async def _publish_questions(
         options = question.get("options", [])
         correct_index = question.get("correctAnswer")
         metadata_valid = (
-            release_id is None
-            or (
-                isinstance(question.get("concept_tags"), list)
-                and bool(question["concept_tags"])
-                and all(isinstance(tag, str) and tag.strip() for tag in question["concept_tags"])
-                and isinstance(question.get("misconception_tags"), list)
-                and all(isinstance(tag, str) and tag.strip() for tag in question["misconception_tags"])
-                and isinstance(question.get("difficulty"), (int, float))
-                and not isinstance(question.get("difficulty"), bool)
-                and 0 <= question["difficulty"] <= 1
-                and question.get("cognitive_skill") in {"recall", "comprehension", "application", "analysis"}
-            )
+            isinstance(question.get("concept_tags"), list)
+            and bool(question["concept_tags"])
+            and all(isinstance(tag, str) and tag.strip() for tag in question["concept_tags"])
+            and isinstance(question.get("misconception_tags"), list)
+            and all(isinstance(tag, str) and tag.strip() for tag in question["misconception_tags"])
+            and isinstance(question.get("difficulty"), (int, float))
+            and not isinstance(question.get("difficulty"), bool)
+            and 0 <= question["difficulty"] <= 1
+            and question.get("cognitive_skill") in {"recall", "comprehension", "application", "analysis"}
         )
         if (
             not metadata_valid
@@ -270,7 +226,7 @@ async def _publish_questions(
             "prompt_version": prompt_version,
             "verification_version": verification_version,
             "release_id": release_id,
-            "status": "ready" if release_id else "published",
+            "status": "ready",
             "review_status": None,
             "reviewed": False,
             "verified": True,
@@ -280,9 +236,12 @@ async def _publish_questions(
             {"$setOnInsert": document},
             upsert=True,
         )
+        stored_document = document if result.upserted_id else await exercises_collection.find_one(
+            {"fingerprint": document["fingerprint"]}
+        )
+        if stored_document and not any(item.get("fingerprint") == document["fingerprint"] for item in existing):
+            existing.append(stored_document)
         if result.upserted_id:
-            document["_id"] = result.upserted_id
-            existing.append(document)
             published += 1
     return published
 
@@ -295,9 +254,9 @@ async def _generate_batch(
     student_profile: dict[str, Any] | None,
     question_count: int = QUIZ_SIZE,
     *,
-    release_id: str | None = None,
-    content_version: str | None = None,
-    prompt_version: str | None = None,
+    release_id: str,
+    content_version: str,
+    prompt_version: str,
     verification_version: str | int = 2,
 ) -> int:
     from app.services.quiz_service import generate_quiz
@@ -321,124 +280,26 @@ async def _generate_batch(
     )
 
 
-async def _verify_pending_questions(topic: str, chunks: list[dict[str, Any]]) -> None:
-    from app.services.quiz_service import verify_stored_question
+async def select_quiz(student_id: str, topic: str, release_id: str) -> dict[str, Any]:
+    if not ObjectId.is_valid(student_id):
+        raise ValueError("El estudiante no es válido")
+    if not release_id:
+        raise ValueError(f"No hay un release publicado para {topic}")
 
-    pending = await exercises_collection.find(
-        {
-            "topic": topic,
-            "language": "es",
-            "verified": {"$ne": True},
-            "verification_version": {"$ne": 2},
-            "$or": [
-                {"status": {"$exists": False}},
-                {"status": None},
-                {"status": "published"},
-            ],
-        }
-    ).limit(QUIZ_SIZE).to_list()
-    for item in pending:
-        if not _stored_question_consistent(item):
-            await exercises_collection.update_one(
-                {"_id": item["_id"]},
-                {"$set": {"verified": False, "reviewed": False, "verification_version": 2}},
-            )
-            continue
-        source_ids = {str(source_id) for source_id in item.get("source_chunk_ids", [])}
-        evidence_chunks = [chunk for chunk in chunks if str(chunk.get("_id")) in source_ids]
-        if not evidence_chunks:
-            await exercises_collection.update_one(
-                {"_id": item["_id"]},
-                {"$set": {"verified": False, "reviewed": False, "verification_version": 2}},
-            )
-            continue
-        is_valid = await verify_stored_question(item, evidence_chunks)
-        update = {"verified": is_valid, "verification_version": 2}
-        if not is_valid:
-            update["reviewed"] = False
-        await exercises_collection.update_one(
-            {"_id": item["_id"]},
-            {"$set": update},
-        )
+    pool = [
+        item for item in await _pool_documents(topic, release_id)
+        if _stored_question_consistent(item)
+    ]
+    answered = await _answered_ids(student_id, topic)
+    candidates = [item for item in pool if str(item["_id"]) not in answered]
+    if len(candidates) < QUIZ_SIZE:
+        candidates.extend(item for item in pool if item not in candidates)
 
-
-async def ensure_pool(
-    student_id: str,
-    topic: str,
-    lesson: dict[str, Any],
-    chunks: list[dict[str, Any]],
-    config: dict[str, Any],
-    student_profile: dict[str, Any] | None,
-) -> None:
-    lock = _topic_locks.setdefault(topic, asyncio.Lock())
-    async with lock:
-        await _verify_pending_questions(topic, chunks)
-        pool = [
-            item for item in await _pool_documents(topic)
-            if item.get("verified") is True and _stored_question_consistent(item)
-        ]
-        known = await _known_ids(student_id, topic)
-        known_count = len({str(item["_id"]) for item in pool} & known)
-        coverage = known_count / len(pool) if pool else 0.0
-        answered = await _answered_ids(student_id, topic)
-        unseen_count = sum(1 for item in pool if str(item["_id"]) not in answered)
-
-        if not pool or len(pool) < QUIZ_SIZE or coverage >= POOL_THRESHOLD or unseen_count < QUIZ_SIZE:
-            await _generate_batch(topic, lesson, chunks, config, student_profile)
-
-
-async def select_quiz(
-    student_id: str,
-    topic: str,
-    lesson: dict[str, Any] | None = None,
-    chunks: list[dict[str, Any]] | None = None,
-    config: dict[str, Any] | None = None,
-    student_profile: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    from app.services.content_service import get_topic_chunks
-    from app.prompts.lesson_prompts import LESSON_CONFIGS
-
-    chunks = chunks if chunks is not None else await get_topic_chunks(topic)
-    config = config if config is not None else LESSON_CONFIGS.get(topic)
-    if not chunks or config is None:
-        raise ValueError("No se pudo obtener el manual para verificar las preguntas de este tema")
-
-    lock = _topic_locks.setdefault(topic, asyncio.Lock())
-    async with lock:
-        await _verify_pending_questions(topic, chunks)
-
-        for _ in range(MAX_GENERATION_BATCHES):
-            pool = [
-                item for item in await _pool_documents(topic)
-                if item.get("verified") is True and _stored_question_consistent(item)
-            ]
-            answered = await _answered_ids(student_id, topic)
-            unseen_count = sum(1 for item in pool if str(item["_id"]) not in answered)
-            if unseen_count >= QUIZ_SIZE:
-                break
-            await _generate_batch(
-                topic,
-                lesson or {"title": topic, "introduction": "", "sections": []},
-                chunks,
-                config,
-                student_profile,
-                question_count=max(QUIZ_SIZE - unseen_count, 1),
-            )
-        pool = [
-            item for item in await _pool_documents(topic)
-            if item.get("verified") is True and _stored_question_consistent(item)
-        ]
-
-        answered = await _answered_ids(student_id, topic)
-        candidates = [item for item in pool if str(item["_id"]) not in answered]
-        if len(candidates) < QUIZ_SIZE:
-            candidates.extend(item for item in pool if item not in candidates)
-
-        candidates = [item for item in candidates if item.get("verified") is True and _stored_question_consistent(item)]
-        candidates.sort(key=lambda item: (item.get("times_served", 0), item.get("difficulty", 0.5)))
-        selected = candidates[:QUIZ_SIZE]
-        if len(selected) < QUIZ_SIZE:
-            raise ValueError("No se pudieron preparar tres preguntas verificadas para este tema. Inténtalo nuevamente más tarde.")
+    candidates = [item for item in candidates if _stored_question_consistent(item)]
+    candidates.sort(key=lambda item: (item.get("times_served", 0), item.get("difficulty", 0.5)))
+    selected = candidates[:QUIZ_SIZE]
+    if len(selected) < QUIZ_SIZE:
+        raise ValueError("No hay suficientes preguntas verificadas y publicadas para este tema. Ejecuta el worker y publica un release con un pool suficiente.")
 
     for item in selected:
         await exercises_collection.update_one(
@@ -450,6 +311,7 @@ async def select_quiz(
         "student_id": ObjectId(student_id),
         "started_at": datetime.now(timezone.utc),
         "quiz_topic": topic,
+        "quiz_release_id": release_id,
         "quiz_exercise_ids": [item["_id"] for item in selected],
         "quiz_status": "assigned",
         "answers": [],

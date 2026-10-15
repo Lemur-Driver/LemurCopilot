@@ -142,6 +142,9 @@ async def submit_quiz_answer(request: QuizAnswerRequest, student: Student = Depe
     exercise = await exercises_collection.find_one({
         "_id": ObjectId(request.exerciseId),
         "topic": assignment["quiz_topic"],
+        "release_id": assignment.get("quiz_release_id"),
+        "status": "published",
+        "verified": True,
     })
     if not exercise:
         raise HTTPException(status_code=404, detail="La pregunta ya no esta disponible")
