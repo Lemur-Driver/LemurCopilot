@@ -11,6 +11,11 @@ from app.models import Student, flatten_mastery, get_mastery_entry
 from app.services.llm_service import generate_text
 from app.prompts.lesson_prompts import LESSON_CONFIGS
 from app.services.progress_service import build_course_progress, PASSING_SCORE
+from app.services.mastery_service import (
+    build_concept_mastery_update,
+    normalize_mastery_tag,
+    summarize_quiz_concept_scores,
+)
 
 router = APIRouter(
     prefix="/students",
@@ -160,6 +165,8 @@ async def submit_quiz_answer(request: QuizAnswerRequest, student: Student = Depe
         "correct_index": correct_index,
         "is_correct": request.selectedIndex == correct_index,
         "topic": assignment["quiz_topic"],
+        "concept_tags": exercise.get("concept_tags", []),
+        "misconception_tags": exercise.get("misconception_tags", []),
     }
     existing_answer = next(
         (
@@ -173,21 +180,40 @@ async def submit_quiz_answer(request: QuizAnswerRequest, student: Student = Depe
         if existing_answer.get("selected_index") != request.selectedIndex:
             raise HTTPException(status_code=409, detail="La respuesta a esta pregunta ya fue registrada")
     else:
-        result = await sessions_collection.update_one(
-            {
-                "_id": session_id,
-                "student_id": ObjectId(student.id),
-                "quiz_status": "assigned",
-                "answers.exercise_id": {"$ne": request.exerciseId},
-            },
-            {"$push": {"answers": answer_record}},
+        mastery_update = build_concept_mastery_update(
+            topic=assignment["quiz_topic"],
+            concept_tags=exercise.get("concept_tags", []),
+            misconception_tags=exercise.get("misconception_tags", []),
+            correct=answer_record["is_correct"],
+            exercise_id=request.exerciseId,
+            question=exercise["question"],
+            timestamp=datetime.utcnow(),
         )
-        if result.modified_count != 1:
-            raise HTTPException(status_code=409, detail="No se pudo registrar la respuesta")
-        await exercises_collection.update_one(
-            {"_id": ObjectId(request.exerciseId)},
-            {"$inc": {"times_correct" if answer_record["is_correct"] else "times_incorrect": 1}},
-        )
+        async with await client.start_session() as mongo_session:
+            async with mongo_session.start_transaction():
+                result = await sessions_collection.update_one(
+                    {
+                        "_id": session_id,
+                        "student_id": ObjectId(student.id),
+                        "quiz_status": "assigned",
+                        "answers.exercise_id": {"$ne": request.exerciseId},
+                    },
+                    {"$push": {"answers": answer_record}},
+                    session=mongo_session,
+                )
+                if result.modified_count != 1:
+                    raise HTTPException(status_code=409, detail="No se pudo registrar la respuesta")
+                await exercises_collection.update_one(
+                    {"_id": ObjectId(request.exerciseId)},
+                    {"$inc": {"times_correct" if answer_record["is_correct"] else "times_incorrect": 1}},
+                    session=mongo_session,
+                )
+                if mastery_update:
+                    await students_collection.update_one(
+                        {"_id": ObjectId(student.id)},
+                        mastery_update,
+                        session=mongo_session,
+                    )
 
     return {
         "exerciseId": request.exerciseId,
@@ -227,6 +253,16 @@ async def save_quiz_result(request: QuizResultRequest, student: Student = Depend
     previous_best = (current.best_score if current and current.best_score is not None else current.score if current else 0.0)
     best_score = max(score, previous_best)
 
+    concept_scores = summarize_quiz_concept_scores(answers, len(assigned_ids))
+    concept_score_paths = {
+        f"concept_mastery.{topic}.{concept}.score": value
+        for concept, value in concept_scores.items()
+    }
+    concept_last_score_paths = {
+        f"concept_mastery.{topic}.{concept}.last_score": value
+        for concept, value in concept_scores.items()
+    }
+
     result = await sessions_collection.update_one(
         {"_id": session_id, "student_id": ObjectId(student.id), "quiz_status": "assigned"},
         {"$set": {
@@ -242,6 +278,8 @@ async def save_quiz_result(request: QuizResultRequest, student: Student = Depend
         {"_id": ObjectId(student.id)},
         {
             "$set": {
+                **concept_score_paths,
+                **concept_last_score_paths,
                 f"mastery.{topic}.score": score,
                 f"mastery.{topic}.last_score": score,
                 f"mastery.{topic}.best_score": best_score,

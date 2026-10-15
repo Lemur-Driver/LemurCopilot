@@ -73,7 +73,7 @@ Modelos Pydantic v2 que documentan y validan la forma de los documentos Mongo. C
 | Modelo | Colección | Rol |
 |--------|-----------|-----|
 | `MongoBaseModel` | — | Clase base: mapea `_id` ↔ `id` (`PyObjectId`). |
-| `Student` / `MasteryEntry` | `students` | Identidad Google + mapa de dominio por concepto (`mastery`). |
+| `Student` / `MasteryEntry` / `ConceptMasteryEntry` | `students` | Identidad Google, resumen de dominio por tema (`mastery`) y contadores de dominio/errores por concepto (`concept_mastery`). |
 | `Concept` | `concepts` | Nodo del grafo de conocimiento (prerequisitos, unidad). |
 | `Exercise` | `exercises` | Ejercicio con tags de conceptos y errores, habilidad cognitiva, versión, release y estado de verificación/publicación; los campos nuevos son opcionales para documentos previos. |
 | `GeneratedLesson` | `generated_lessons` | Variante pedagógica de lección ligada a tema, idioma, versión, release y verificación. |
@@ -116,7 +116,7 @@ upsert_student_from_google() # find_one_and_update(upsert=True)
 ```
 
 - La verificación usa `google.oauth2.id_token.verify_oauth2_token` contra las claves públicas de Google, con `audience = GOOGLE_CLIENT_ID`.
-- El *upsert* distingue `$set` (datos de perfil que pueden cambiar: email, nombre, foto, `last_login`) de `$setOnInsert` (identidad inmutable: `google_sub`, `created_at`, `mastery` vacío).
+- El *upsert* distingue `$set` (datos de perfil que pueden cambiar: email, nombre, foto, `last_login`) de `$setOnInsert` (identidad inmutable: `google_sub`, `created_at`, `mastery` y `concept_mastery` vacíos).
 - **Invariante:** `google_sub` jamás se modifica tras la creación; es la clave estable de identidad.
 
 ### 2.4.2 `llm_service.py` — fachada de proveedor LLM

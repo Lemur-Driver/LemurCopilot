@@ -1,7 +1,7 @@
 import asyncio
 import hashlib
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from collections.abc import Iterable
 from difflib import SequenceMatcher
 from typing import Any
@@ -74,15 +74,39 @@ async def _known_ids(student_id: str, topic: str) -> set[str]:
     return known
 
 
-async def _pool_documents(topic: str, release_id: str | None = None) -> list[dict[str, Any]]:
-    query: dict[str, Any] = {"topic": topic, "language": "es"}
-    from app.services.content_release_service import get_published_release_id
+async def _pool_documents(
+    topic: str,
+    release_id: str | None = None,
+) -> list[dict[str, Any]]:
 
-    published_release_id = release_id or await get_published_release_id(topic)
-    if not published_release_id:
-        return []
-    query["release_id"] = published_release_id
-    query["status"] = "published"
+    query: dict[str, Any] = {
+        "topic": topic,
+        "language": "es",
+    }
+
+    if release_id is not None:
+        # Worker construyendo una release.
+        query["release_id"] = release_id
+        query["status"] = {
+            "$in": ["ready", "published"]
+        }
+
+    else:
+        # Runtime: solamente contenido publicado.
+        from app.services.content_release_service import (
+            get_published_release_id,
+        )
+
+        published_release_id = (
+            await get_published_release_id(topic)
+        )
+
+        if not published_release_id:
+            return []
+
+        query["release_id"] = published_release_id
+        query["status"] = "published"
+
     return await exercises_collection.find(query).to_list()
 
 
@@ -115,15 +139,37 @@ async def _is_duplicate(
     options: list[str],
     existing: list[dict[str, Any]],
     correct_index: int,
+    release_id: str | None = None,
 ) -> bool:
-    fingerprint = question_fingerprint(topic, question, options, correct_index)
+
+    fingerprint = question_fingerprint(
+        topic,
+        question,
+        options,
+        correct_index,
+        release_id,
+    )
+
     normalized = normalize_question(question)
+
     for item in existing:
         if item.get("fingerprint") == fingerprint:
             return True
-        other = normalize_question(item.get("question", ""))
-        if other and SequenceMatcher(None, normalized, other).ratio() >= SIMILARITY_THRESHOLD:
+
+        other = normalize_question(
+            item.get("question", "")
+        )
+
+        if (
+            other
+            and SequenceMatcher(
+                None,
+                normalized,
+                other,
+            ).ratio() >= SIMILARITY_THRESHOLD
+        ):
             return True
+
     return False
 
 
@@ -178,7 +224,7 @@ async def _publish_questions(
             or not 0 <= correct_index < len(options)
             or options[correct_index].strip().casefold() != str(question.get("correctAnswerText", "")).strip().casefold()
             or not question.get("verified")
-            or await _is_duplicate(topic, text, options, existing, correct_index)
+            or await _is_duplicate(topic, text, options, existing, correct_index, release_id)
         ):
             continue
 
@@ -402,7 +448,7 @@ async def select_quiz(
 
     assignment = await sessions_collection.insert_one({
         "student_id": ObjectId(student_id),
-        "started_at": datetime.utcnow(),
+        "started_at": datetime.now(timezone.utc),
         "quiz_topic": topic,
         "quiz_exercise_ids": [item["_id"] for item in selected],
         "quiz_status": "assigned",

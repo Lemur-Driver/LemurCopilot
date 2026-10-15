@@ -129,7 +129,8 @@ Los modelos de referencia viven en [`backend/app/models.py`](../backend/app/mode
 | `name` / `picture` | string | Perfil visible; `picture` opcional. |
 | `created_at` / `last_login` | datetime | Auditoría de ciclo de vida. |
 | `current_unit` | string \| null | Unidad en la que está trabajando. |
-| `mastery` | objeto (`dict[str, MasteryEntry]`) | **Modelo de dominio**: mapa `topic` (`C1.1`, `C1.2`, …) → `{ score, last_score, best_score, attempts, last_seen }`. Nace vacío. |
+| `mastery` | objeto (`dict[str, MasteryEntry]`) | **Modelo de dominio por tema**: mapa `topic` (`C1.1`, `C1.2`, …) → `{ score, last_score, best_score, attempts, last_seen }`. Se mantiene como resumen general. |
+| `concept_mastery` | objeto | Mapa `topic → concept_tag → { attempts, correct, incorrect, last_score, last_seen, recent_errors, misconception_counts }`. Se crea vacío para estudiantes existentes y se actualiza desde respuestas calificadas de ejercicios etiquetados. |
 
 Escritura: únicamente por `upsert_student_from_google()` (`$set` perfil + `$setOnInsert` identidad).
 
@@ -155,7 +156,7 @@ Escritura: únicamente por `upsert_student_from_google()` (`$set` perfil + `$set
 | `generated_by` | enum | `llm` \| `manual`. |
 | `source_chunk_ids` | ObjectId[] | Trazabilidad al manual. |
 | `fingerprint` | string | Huella única para impedir duplicados exactos; el worker incluye el release en la huella para aislar versiones. |
-| `concept_tags` / `misconception_tags` | string[] | Conceptos evaluados y errores conceptuales frecuentes asociados. Opcionales para los ejercicios históricos. |
+| `concept_tags` / `misconception_tags` | string[] | Conceptos evaluados y errores conceptuales frecuentes asociados. Se copian en la respuesta registrada para que el resultado sea auditable; opcionales para ejercicios históricos sin etiquetas. |
 | `cognitive_skill` | enum | Habilidad `recall`, `comprehension`, `application` o `analysis`. |
 | `content_version` / `prompt_version` / `verification_version` | string | Versiones del contenido, prompt y verificador utilizados. |
 | `release_id` | string \| null | Release que contiene el ejercicio. Las preguntas anteriores a releases no tienen este campo. |
@@ -175,7 +176,7 @@ Escritura: únicamente por `upsert_student_from_google()` (`$set` perfil + `$set
 | `started_at` | datetime | Inicio. |
 | `messages` | subdocumentos[] | `{ role: agent\|student, content, timestamp }`. |
 | `quiz_topic` / `score` | string / float | Tema y resultado del quiz completo. |
-| `answers` | subdocumentos[] | `{ exercise_id, selected_index, correct_index, is_correct, timestamp }` — historial por pregunta. |
+| `answers` | subdocumentos[] | `{ exercise_id, selected_index, correct_index, is_correct, topic, concept_tags, misconception_tags, timestamp }` — historial por pregunta y snapshot de metadatos usados para actualizar mastery. |
 
 ### 4.2.6 `manual_chunks` — corpus RAG (colección activa principal)
 

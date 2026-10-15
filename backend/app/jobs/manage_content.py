@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 from typing import Any
 
@@ -106,7 +106,7 @@ async def review_question(exercise_id: str, decision: str, reviewer: str, notes:
     update = {
         "review_status": "approved" if decision == "approve" else "rejected",
         "reviewed_by": reviewer,
-        "reviewed_at": datetime.utcnow(),
+        "reviewed_at": datetime.now(timezone.utc),
         "review_notes": notes,
         "reviewed": decision == "approve",
     }

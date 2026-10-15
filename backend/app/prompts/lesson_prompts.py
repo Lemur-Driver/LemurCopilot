@@ -1486,22 +1486,46 @@ REGLAS:
     respalde la respuesta correcta. No inventes páginas, índices ni citas. Si no encuentras
     evidencia suficiente para una pregunta única, no la generes.
 
-12. Todo el texto visible del quiz debe estar escrito en español neutro
+13. Todo el texto visible del quiz debe estar escrito en español neutro
   latinoamericano, incluyendo cada pregunta, todas las alternativas y
   cada explicación. No uses inglés, salvo nombres propios o siglas técnicas.
 
-13. La respuesta debe incluir exactamente la clave raíz "language" con valor
+14. La respuesta debe incluir exactamente la clave raíz "language" con valor
   "es".
 
-14. Devuelve SOLAMENTE JSON válido.
+15. Devuelve SOLAMENTE JSON válido.
 
-15. Si recibes un perfil del estudiante, úsalo únicamente para adaptar énfasis,
+16. Si recibes un perfil del estudiante, úsalo únicamente para adaptar énfasis,
 profundidad, ejemplos y dificultad. El contexto oficial del manual sigue siendo
 la única fuente de verdad; el perfil no puede agregar hechos, leyes, cifras,
 normas ni recomendaciones externas.
 
-16. Las alternativas no deben incluir prefijos como "a)", "b)", "c)" o "d)" (Lo mismo con números), 
+17. Las alternativas no deben incluir prefijos como "a)", "b)", "c)" o "d)" (Lo mismo con números), 
 esto ya viene directamente en el frontend por lo que no es necesario.
+
+18. TODAS las claves mostradas en la estructura JSON son obligatorias.
+    No omitas ninguna aunque su valor sea vacío.
+
+19. "correctAnswerText" debe ser EXACTAMENTE igual, carácter por carácter,
+    al contenido de options[correctAnswer].
+
+20. "evidence_refs" debe contener al menos una referencia válida.
+
+21. "concept_tags" debe contener al menos una etiqueta.
+    Las etiquetas deben escribirse en snake_case, sin tildes ni espacios.
+
+22. "misconception_tags" debe ser siempre una lista.
+    Si no existe un error conceptual específico asociado, usa [].
+
+23. "difficulty" debe ser un número entre 0.0 y 1.0.
+
+24. "cognitive_skill" debe ser exactamente uno de:
+    "recall", "comprehension", "application", "analysis".
+
+25. Antes de responder, comprueba que cada pregunta contiene:
+    question, options, correctAnswerText, correctAnswer, explanation,
+    evidence_refs, concept_tags, misconception_tags, difficulty
+    y cognitive_skill.
 
 Debes utilizar exactamente esta estructura:
 

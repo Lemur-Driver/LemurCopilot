@@ -87,7 +87,7 @@ def clean_json_response(
 def validate_quiz_json(
     data: dict,
     expected_count: int = 3,
-):
+) -> None:
 
     if not isinstance(data, dict):
         raise ValueError("El quiz debe ser un objeto JSON")
@@ -97,114 +97,243 @@ def validate_quiz_json(
             "El quiz debe incluir 'language' con valor 'es'"
         )
 
-    if "questions" not in data:
-        raise ValueError(
-            "El quiz no contiene 'questions'"
-        )
+    questions = data.get("questions")
 
-    questions = data["questions"]
-
-    if not isinstance(
-        questions,
-        list,
-    ):
+    if not isinstance(questions, list):
         raise ValueError(
             "'questions' debe ser una lista"
         )
 
     if len(questions) != expected_count:
         raise ValueError(
-            f"El quiz debe tener exactamente {expected_count} preguntas"
+            f"El quiz debe tener exactamente "
+            f"{expected_count} preguntas"
         )
 
-    for index, question in enumerate(
-        questions
-    ):
+    required_fields = {
+        "question",
+        "options",
+        "correctAnswer",
+        "correctAnswerText",
+        "explanation",
+        "evidence_refs",
+        "concept_tags",
+        "misconception_tags",
+        "difficulty",
+        "cognitive_skill",
+    }
 
-        if not isinstance(
-            question,
-            dict,
-        ):
+    valid_skills = {
+        "recall",
+        "comprehension",
+        "application",
+        "analysis",
+    }
+
+    for index, question in enumerate(questions):
+        number = index + 1
+
+        if not isinstance(question, dict):
             raise ValueError(
-                f"Pregunta {index + 1} inválida"
+                f"Pregunta {number}: debe ser un objeto"
             )
 
-        required_fields = [
-            "question",
-            "options",
-            "correctAnswer",
-            "correctAnswerText",
-            "explanation",
-            "evidence_refs",
-        ]
+        missing = required_fields - question.keys()
 
-        for field in required_fields:
+        if missing:
+            raise ValueError(
+                f"Pregunta {number}: faltan campos "
+                f"{sorted(missing)}"
+            )
 
-            if field not in question:
-                raise ValueError(
-                    f"Pregunta {index + 1}: "
-                    f"falta '{field}'"
-                )
+        # --------------------------------------------------
+        # Pregunta
+        # --------------------------------------------------
+
+        if (
+            not isinstance(question["question"], str)
+            or not question["question"].strip()
+        ):
+            raise ValueError(
+                f"Pregunta {number}: 'question' debe ser texto no vacío"
+            )
+
+        # --------------------------------------------------
+        # Alternativas
+        # --------------------------------------------------
 
         options = question["options"]
 
-        if not isinstance(
-            options,
-            list,
-        ):
+        if not isinstance(options, list) or len(options) != 4:
             raise ValueError(
-                f"Pregunta {index + 1}: "
-                "'options' debe ser una lista"
-            )
-
-        if len(options) != 4:
-            raise ValueError(
-                f"Pregunta {index + 1}: "
-                "debe tener exactamente "
+                f"Pregunta {number}: debe tener exactamente "
                 "4 alternativas"
             )
 
-        for field, value in [
-            ("question", question["question"]),
-            *[("option", option) for option in options],
-            ("correctAnswerText", question["correctAnswerText"]),
-            ("explanation", question["explanation"]),
-        ]:
-            if not isinstance(value, str) or not value.strip():
+        if any(
+            not isinstance(option, str)
+            or not option.strip()
+            for option in options
+        ):
+            raise ValueError(
+                f"Pregunta {number}: todas las alternativas "
+                "deben ser textos no vacíos"
+            )
+
+        normalized_options = {
+            option.strip().casefold()
+            for option in options
+        }
+
+        if len(normalized_options) != 4:
+            raise ValueError(
+                f"Pregunta {number}: "
+                "las alternativas deben ser distintas"
+            )
+
+        # --------------------------------------------------
+        # Respuesta correcta
+        # --------------------------------------------------
+
+        correct_index = question["correctAnswer"]
+
+        if (
+            not isinstance(correct_index, int)
+            or isinstance(correct_index, bool)
+            or not 0 <= correct_index < 4
+        ):
+            raise ValueError(
+                f"Pregunta {number}: "
+                "'correctAnswer' debe ser un entero entre 0 y 3"
+            )
+
+        correct_text = question["correctAnswerText"]
+
+        if (
+            not isinstance(correct_text, str)
+            or not correct_text.strip()
+        ):
+            raise ValueError(
+                f"Pregunta {number}: "
+                "'correctAnswerText' debe ser texto no vacío"
+            )
+
+        if (
+            options[correct_index].strip()
+            != correct_text.strip()
+        ):
+            raise ValueError(
+                f"Pregunta {number}: "
+                "correctAnswerText debe coincidir exactamente "
+                "con options[correctAnswer]"
+            )
+
+        # --------------------------------------------------
+        # Explicación
+        # --------------------------------------------------
+
+        explanation = question["explanation"]
+
+        if (
+            not isinstance(explanation, str)
+            or not explanation.strip()
+        ):
+            raise ValueError(
+                f"Pregunta {number}: "
+                "'explanation' debe ser texto no vacío"
+            )
+
+        # --------------------------------------------------
+        # Evidencia
+        # --------------------------------------------------
+
+        evidence_refs = question["evidence_refs"]
+
+        if (
+            not isinstance(evidence_refs, list)
+            or not evidence_refs
+        ):
+            raise ValueError(
+                f"Pregunta {number}: "
+                "debe contener al menos una referencia de evidencia"
+            )
+
+        for ref in evidence_refs:
+            if not isinstance(ref, dict):
                 raise ValueError(
-                    f"Pregunta {index + 1}: "
-                    f"'{field}' debe ser un texto no vacío"
+                    f"Pregunta {number}: "
+                    "referencia de evidencia inválida"
                 )
 
-        if len({option.strip().casefold() for option in options}) != 4:
-            raise ValueError(f"Pregunta {index + 1}: las alternativas deben ser distintas")
+            if "page" not in ref or "chunk_index" not in ref:
+                raise ValueError(
+                    f"Pregunta {number}: "
+                    "evidence_ref necesita page y chunk_index"
+                )
 
-        evidence_refs = question.get("evidence_refs", [])
-        if not isinstance(evidence_refs, list):
-            raise ValueError(f"Pregunta {index + 1}: referencias de evidencia inválidas")
-        for ref in evidence_refs:
-            if not isinstance(ref, dict) or "page" not in ref or "chunk_index" not in ref or not isinstance(ref.get("quote"), str) or not ref["quote"].strip():
-                raise ValueError(f"Pregunta {index + 1}: referencia de evidencia inválida")
+            quote = ref.get("quote")
 
-        correct_answer = question["correctAnswer"]
+            if (
+                not isinstance(quote, str)
+                or not quote.strip()
+            ):
+                raise ValueError(
+                    f"Pregunta {number}: "
+                    "evidence_ref necesita quote no vacío"
+                )
 
-        if not isinstance(correct_answer, int) or isinstance(correct_answer, bool):
+        # --------------------------------------------------
+        # Metadata pedagógica
+        # --------------------------------------------------
+
+        concept_tags = question["concept_tags"]
+
+        if (
+            not isinstance(concept_tags, list)
+            or not concept_tags
+            or any(
+                not isinstance(tag, str)
+                or not tag.strip()
+                for tag in concept_tags
+            )
+        ):
             raise ValueError(
-                f"Pregunta {index + 1}: "
-                "'correctAnswer' debe ser entero"
+                f"Pregunta {number}: "
+                "'concept_tags' debe contener al menos un concepto"
             )
 
-        if not 0 <= correct_answer < len(options):
+        misconception_tags = question["misconception_tags"]
+
+        if (
+            not isinstance(misconception_tags, list)
+            or any(
+                not isinstance(tag, str)
+                or not tag.strip()
+                for tag in misconception_tags
+            )
+        ):
             raise ValueError(
-                f"Pregunta {index + 1}: "
-                "'correctAnswer' debe estar entre 0 y 3"
+                f"Pregunta {number}: "
+                "'misconception_tags' debe ser una lista de strings"
             )
 
-        if options[correct_answer].strip().casefold() != question["correctAnswerText"].strip().casefold():
+        difficulty = question["difficulty"]
+
+        if (
+            not isinstance(difficulty, (int, float))
+            or isinstance(difficulty, bool)
+            or not 0 <= difficulty <= 1
+        ):
             raise ValueError(
-                f"Pregunta {index + 1}: el índice no coincide con correctAnswerText"
+                f"Pregunta {number}: "
+                "'difficulty' debe estar entre 0 y 1"
             )
 
+        if question["cognitive_skill"] not in valid_skills:
+            raise ValueError(
+                f"Pregunta {number}: "
+                "'cognitive_skill' inválido"
+            )
 
 # ============================================================
 # GENERAR QUIZ
@@ -413,50 +542,22 @@ Recuerda:
     # --------------------------------------------------------
 
     response = await generate_text(
-        prompt
+        prompt,
+        json_mode=True,
     )
 
 
-    # --------------------------------------------------------
-    # 6. Limpiar respuesta
-    # --------------------------------------------------------
-
-    cleaned_response = (
-        clean_json_response(
-            response
-        )
+    response = await generate_text(
+        prompt,
+        json_mode=True,
     )
 
+    quiz = await _parse_quiz_response(
+        response,
+        expected_count=question_count,
+    )
 
-    # --------------------------------------------------------
-    # 7. Convertir JSON
-    # --------------------------------------------------------
-
-    try:
-
-        quiz = json.loads(
-            cleaned_response
-        )
-
-    except json.JSONDecodeError as error:
-
-        print(
-            "\nERROR: Quiz JSON inválido\n"
-        )
-
-        print(
-            cleaned_response
-        )
-
-        raise ValueError(
-            "El modelo no devolvió "
-            "un quiz JSON válido"
-        ) from error
-
-
-    # --------------------------------------------------------
-    # 8. Validar
-    # --------------------------------------------------------
-
-    validate_quiz_json(quiz, expected_count=question_count)
-    return await verify_quiz(quiz, chunks)
+    return await verify_quiz(
+        quiz,
+        chunks,
+    )

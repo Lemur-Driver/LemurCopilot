@@ -7,7 +7,7 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from app.database import (
@@ -134,7 +134,7 @@ async def _ensure_release(release_id: str | None, content_version: str) -> str:
         "release_id": release_id,
         "content_version": content_version,
         "status": "building",
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
         "published_at": None,
         "topics": [],
     })
@@ -258,10 +258,24 @@ async def _process_topic(topic: str, release_id: str, content_version: str, forc
     for _ in range(MAX_QUESTION_BATCHES):
         if len(existing_questions) >= QUESTION_POOL_MINIMUM:
             break
-        requested = min(5, QUESTION_POOL_MINIMUM - len(existing_questions))
-        before_ids = {str(item["_id"]) for item in await exercises_collection.find({
-            "topic": topic, "language": "es", "release_id": release_id,
-        }, {"_id": 1}).to_list()}
+
+        requested = min(
+            5,
+            QUESTION_POOL_MINIMUM - len(existing_questions),
+        )
+
+        before_ids = {
+            item["_id"]
+            for item in await exercises_collection.find(
+                {
+                    "topic": topic,
+                    "language": "es",
+                    "release_id": release_id,
+                },
+                {"_id": 1},
+            ).to_list()
+        }
+
         try:
             generated = await _generate_batch(
                 topic,
@@ -275,27 +289,63 @@ async def _process_topic(topic: str, release_id: str, content_version: str, forc
                 prompt_version=QUESTION_PROMPT_VERSION,
                 verification_version=VERIFICATION_VERSION,
             )
-        except Exception:
-            await exercises_collection.update_many({
+
+        except Exception as error:
+            counts["rejected"] += requested
+            counts["verification_failures"] += 1
+
+            logger.warning(
+                "Batch de preguntas rechazado para %s: %s",
+                topic,
+                error,
+            )
+
+            await exercises_collection.update_many(
+                {
+                    "topic": topic,
+                    "language": "es",
+                    "release_id": release_id,
+                    "status": "ready",
+                    "_id": {
+                        "$nin": list(before_ids)
+                    },
+                },
+                {
+                    "$set": {
+                        "status": "rejected",
+                        "verified": False,
+                        "verification_error": str(error),
+                    }
+                },
+            )
+
+            continue
+
+        all_candidates = await exercises_collection.find(
+            {
                 "topic": topic,
                 "language": "es",
                 "release_id": release_id,
-                "status": "ready",
-                "_id": {"$nin": list(before_ids)},
-            }, {"$set": {"status": "rejected", "verified": False}})
-            raise
-        all_candidates = await exercises_collection.find({
-            "topic": topic,
-            "language": "es",
-            "release_id": release_id,
-            "_id": {"$nin": list(before_ids)},
-        }).to_list()
+                "_id": {
+                    "$nin": list(before_ids)
+                },
+            }
+        ).to_list()
+
         counts["generated"] += len(all_candidates)
-        counts["rejected"] += max(0, requested - len(all_candidates))
+        counts["rejected"] += max(
+            0,
+            requested - len(all_candidates),
+        )
+
         for item in all_candidates:
-            if item.get("status") != "ready" or item.get("verified") is not True:
+            if (
+                item.get("status") != "ready"
+                or item.get("verified") is not True
+            ):
                 counts["rejected"] += 1
                 continue
+
             fingerprint = question_fingerprint(
                 topic,
                 item.get("question", ""),
@@ -303,48 +353,137 @@ async def _process_topic(topic: str, release_id: str, content_version: str, forc
                 item.get("correct_index"),
                 release_id,
             )
+
             if fingerprint in fingerprints:
                 counts["rejected"] += 1
-                await exercises_collection.update_one({"_id": item["_id"]}, {"$set": {"status": "rejected", "verified": False, "verification_error": "Pregunta duplicada"}})
+
+                await exercises_collection.update_one(
+                    {"_id": item["_id"]},
+                    {
+                        "$set": {
+                            "status": "rejected",
+                            "verified": False,
+                            "verification_error": "Pregunta duplicada",
+                        }
+                    },
+                )
+
                 continue
+
             fingerprints.add(fingerprint)
+
             try:
-                valid_sources = [chunk for chunk in chunks if str(chunk.get("_id")) in {
-                    str(source_id) for source_id in item.get("source_chunk_ids", [])
-                }]
-                if len(valid_sources) != len(item.get("source_chunk_ids", [])):
-                    raise ValueError("Hay source_chunk_ids fuera del tema")
+                source_ids = {
+                    str(source_id)
+                    for source_id in item.get(
+                        "source_chunk_ids",
+                        [],
+                    )
+                }
+
+                valid_sources = [
+                    chunk
+                    for chunk in chunks
+                    if str(chunk.get("_id")) in source_ids
+                ]
+
+                if len(valid_sources) != len(source_ids):
+                    raise ValueError(
+                        "Hay source_chunk_ids fuera del tema"
+                    )
+
                 refs = item.get("evidence_refs", [])
-                referenced_chunks = _validate_question_evidence({"evidence_refs": refs}, chunks)
-                if {str(chunk.get("_id")) for chunk in referenced_chunks} - {str(chunk.get("_id")) for chunk in valid_sources}:
-                    raise ValueError("Los chunks citados no coinciden con source_chunk_ids")
+
+                referenced_chunks = (
+                    _validate_question_evidence(
+                        {"evidence_refs": refs},
+                        chunks,
+                    )
+                )
+
+                if {
+                    str(chunk.get("_id"))
+                    for chunk in referenced_chunks
+                } - {
+                    str(chunk.get("_id"))
+                    for chunk in valid_sources
+                }:
+                    raise ValueError(
+                        "Los chunks citados no coinciden "
+                        "con source_chunk_ids"
+                    )
+
                 question = {
                     "question": item.get("question"),
                     "options": item.get("options"),
-                    "correct_index": item.get("correct_index"),
-                    "correct_answer": item.get("correct_answer"),
-                    "explanation": item.get("explanation"),
-                    "correctAnswerText": item.get("correct_answer"),
+                    "correct_index": item.get(
+                        "correct_index"
+                    ),
+                    "correct_answer": item.get(
+                        "correct_answer"
+                    ),
+                    "explanation": item.get(
+                        "explanation"
+                    ),
+                    "correctAnswerText": item.get(
+                        "correct_answer"
+                    ),
                     "evidence_refs": refs,
                 }
-                if not await verify_question(question, referenced_chunks):
-                    raise ValueError("Verificador semántico rechazó la pregunta")
-                await exercises_collection.update_one({"_id": item["_id"]}, {"$set": {
-                    "status": "ready",
-                    "verified": True,
-                    "review_status": "pending" if topic == "C1.1" else None,
-                    "reviewed": False,
-                    "verification_version": VERIFICATION_VERSION,
-                }})
+
+                if not await verify_question(
+                    question,
+                    referenced_chunks,
+                ):
+                    raise ValueError(
+                        "Verificador semántico rechazó "
+                        "la pregunta"
+                    )
+
+                await exercises_collection.update_one(
+                    {"_id": item["_id"]},
+                    {
+                        "$set": {
+                            "status": "ready",
+                            "verified": True,
+                            "review_status": (
+                                "pending"
+                                if topic == "C1.1"
+                                else None
+                            ),
+                            "reviewed": False,
+                            "verification_version": (
+                                VERIFICATION_VERSION
+                            ),
+                        }
+                    },
+                )
+
                 existing_questions.append(item)
+
             except Exception as error:
                 counts["rejected"] += 1
                 counts["verification_failures"] += 1
-                await exercises_collection.update_one({"_id": item["_id"]}, {"$set": {"status": "rejected", "verified": False, "verification_error": str(error)}})
+
+                await exercises_collection.update_one(
+                    {"_id": item["_id"]},
+                    {
+                        "$set": {
+                            "status": "rejected",
+                            "verified": False,
+                            "verification_error": str(
+                                error
+                            ),
+                        }
+                    },
+                )
 
         if generated == 0:
-            break
-
+            logger.warning(
+                "El batch para %s no produjo preguntas publicables",
+                topic,
+            )
+        
     if len(existing_questions) < QUESTION_POOL_MINIMUM:
         raise RuntimeError(f"Pool insuficiente: {len(existing_questions)}/{QUESTION_POOL_MINIMUM} preguntas verificadas")
     return counts

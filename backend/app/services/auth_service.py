@@ -65,6 +65,7 @@ async def upsert_student_from_google(profile: dict) -> Student:
                 "created_at": now,
                 "current_unit": None,
                 "mastery": {},
+                "concept_mastery": {},
             },
         },
         upsert=True,

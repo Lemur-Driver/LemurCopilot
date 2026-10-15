@@ -1,8 +1,9 @@
+import re
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from bson import ObjectId
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
 PyObjectId = Annotated[str, BeforeValidator(str)]
 
@@ -15,6 +16,27 @@ class MongoBaseModel(BaseModel):
 
 
 # ---------- students ----------
+
+class ConceptMasteryEntry(BaseModel):
+    attempts: int = 0
+    correct: int = 0
+    incorrect: int = 0
+    score: float = 0.0
+    last_score: float | None = None
+    last_seen: datetime | None = None
+    recent_errors: list[dict[str, Any]] = Field(default_factory=list)
+    misconception_counts: dict[str, int] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_counts(self) -> "ConceptMasteryEntry":
+        if self.attempts != self.correct + self.incorrect:
+            raise ValueError("attempts debe coincidir con correct + incorrect")
+        if not 0 <= self.score <= 1:
+            raise ValueError("score debe estar entre 0 y 1")
+        if self.last_score is not None and not 0 <= self.last_score <= 1:
+            raise ValueError("last_score debe estar entre 0 y 1")
+        return self
+
 
 class MasteryEntry(BaseModel):
     score: float = 0.0
@@ -54,6 +76,13 @@ def flatten_mastery(mastery: dict[str, Any]) -> dict[str, MasteryEntry]:
 
 
 class Student(MongoBaseModel):
+    @model_validator(mode="before")
+    @classmethod
+    def default_concept_mastery(cls, value: Any) -> Any:
+        if isinstance(value, dict) and "concept_mastery" not in value:
+            return {**value, "concept_mastery": {}}
+        return value
+
     google_sub: str
     name: str
     email: str
@@ -62,6 +91,14 @@ class Student(MongoBaseModel):
     last_login: datetime = Field(default_factory=datetime.utcnow)
     current_unit: str | None = None
     mastery: dict[str, Any] = Field(default_factory=dict)
+    concept_mastery: dict[str, dict[str, ConceptMasteryEntry]] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_concept_mastery(self) -> "Student":
+        for topic in self.concept_mastery:
+            if not re.fullmatch(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*", topic):
+                raise ValueError("concept_mastery contiene un tema inválido")
+        return self
 
 
 # ---------- concepts ----------
@@ -188,6 +225,8 @@ class QuizAnswerRecord(BaseModel):
     correct_index: int | None = None
     is_correct: bool
     topic: str | None = None
+    concept_tags: list[str] = Field(default_factory=list)
+    misconception_tags: list[str] = Field(default_factory=list)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
