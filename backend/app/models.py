@@ -1,9 +1,12 @@
 import re
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Annotated, Any, Literal
 
 from bson import ObjectId
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
+
+def utc_now_naive() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
 
 PyObjectId = Annotated[str, BeforeValidator(str)]
 
@@ -87,8 +90,8 @@ class Student(MongoBaseModel):
     name: str
     email: str
     picture: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    last_login: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now_naive)
+    last_login: datetime = Field(default_factory=utc_now_naive)
     current_unit: str | None = None
     mastery: dict[str, Any] = Field(default_factory=dict)
     concept_mastery: dict[str, dict[str, ConceptMasteryEntry]] = Field(default_factory=dict)
@@ -144,7 +147,7 @@ class Exercise(MongoBaseModel):
     reviewed_by: str | None = None
     reviewed_at: datetime | None = None
     review_notes: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now_naive)
     times_served: int = 0
     times_correct: int = 0
     times_incorrect: int = 0
@@ -166,8 +169,8 @@ class GeneratedLesson(MongoBaseModel):
         "published", "rejected", "failed", "superseded",
     ] = "pending"
     verified: bool = False
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    generated_at: datetime = Field(default_factory=utc_now_naive)
+    updated_at: datetime = Field(default_factory=utc_now_naive)
     generation_metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -177,7 +180,7 @@ class ContentRelease(MongoBaseModel):
     status: Literal[
         "building", "validating", "ready", "published", "superseded", "failed",
     ] = "building"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now_naive)
     published_at: datetime | None = None
     topics: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -201,7 +204,7 @@ class ContentJob(MongoBaseModel):
     generated_count: int = 0
     rejected_count: int = 0
     verification_failures: int = 0
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now_naive)
 
 
 # ---------- sessions ----------
@@ -209,13 +212,13 @@ class ContentJob(MongoBaseModel):
 class SessionMessage(BaseModel):
     role: Literal["agent", "student"]
     content: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=utc_now_naive)
 
 
 class ExerciseAttempt(BaseModel):
     exercise_id: PyObjectId | None = None
     correct: bool
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=utc_now_naive)
 
 
 class QuizAnswerRecord(BaseModel):
@@ -227,12 +230,12 @@ class QuizAnswerRecord(BaseModel):
     topic: str | None = None
     concept_tags: list[str] = Field(default_factory=list)
     misconception_tags: list[str] = Field(default_factory=list)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=utc_now_naive)
 
 
 class Session(MongoBaseModel):
     student_id: PyObjectId
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=utc_now_naive)
     quiz_topic: str | None = None
     quiz_exercise_ids: list[PyObjectId] = Field(default_factory=list)
     quiz_status: Literal["assigned", "completed"] | None = None

@@ -9,6 +9,7 @@ from typing import Any
 from bson import ObjectId
 
 from app.database import client, content_releases_collection, exercises_collection
+from app.models import utc_now_naive
 from app.prompts.lesson_prompts import LESSON_SEQUENCE
 from app.services.content_release_service import (
     publish_release,
@@ -166,7 +167,7 @@ async def verify_existing(topic: str, release_id: str | None, limit: int) -> Non
             valid_refs = bool(evidence_chunks)
 
         is_valid = valid_refs and bool(evidence_chunks) and await verify_stored_question(question, evidence_chunks)
-        now = datetime.utcnow()
+        now = utc_now_naive()
         if not is_valid:
             await exercises_collection.update_one({"_id": question["_id"]}, {"$set": {
                 "status": "rejected",
@@ -205,7 +206,7 @@ async def verify_existing(topic: str, release_id: str | None, limit: int) -> Non
             if remaining == 0:
                 await content_releases_collection.update_one({"release_id": release_id}, {"$set": {
                     "metadata.pilot_review_completed": True,
-                    "metadata.pilot_review_completed_at": datetime.utcnow(),
+                    "metadata.pilot_review_completed_at": utc_now_naive(),
                 }})
 
 

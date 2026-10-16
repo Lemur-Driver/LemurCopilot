@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.database import client, exercises_collection, sessions_collection, students_collection
 from app.dependencies import get_current_student
-from app.models import Student, flatten_mastery, get_mastery_entry
+from app.models import Student, flatten_mastery, get_mastery_entry, utc_now_naive
 from app.services.llm_service import generate_text
 from app.prompts.lesson_prompts import LESSON_CONFIGS
 from app.services.progress_service import build_course_progress, PASSING_SCORE
@@ -190,7 +190,7 @@ async def submit_quiz_answer(request: QuizAnswerRequest, student: Student = Depe
             correct=answer_record["is_correct"],
             exercise_id=request.exerciseId,
             question=exercise["question"],
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now_naive(),
         )
         async with await client.start_session() as mongo_session:
             async with mongo_session.start_transaction():
@@ -248,7 +248,7 @@ async def save_quiz_result(request: QuizResultRequest, student: Student = Depend
     if len(assigned_ids) != 3 or {answer.get("exercise_id") for answer in answers} != set(assigned_ids):
         raise HTTPException(status_code=400, detail="Debes responder las tres preguntas antes de finalizar")
 
-    now = datetime.utcnow()
+    now = utc_now_naive()
     score = sum(answer["is_correct"] for answer in answers) / len(answers)
     topic = assignment["quiz_topic"]
     current = get_mastery_entry(student.mastery, topic)

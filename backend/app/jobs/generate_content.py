@@ -17,6 +17,7 @@ from app.database import (
     exercises_collection,
     generated_lessons_collection,
 )
+from app.models import utc_now_naive
 from app.prompts.lesson_prompts import LESSON_CONFIGS, LESSON_SEQUENCE
 from app.services.content_service import get_topic_chunks
 from app.services.lesson_service import generate_lesson
@@ -300,12 +301,12 @@ async def _record_job_start(job_id: str, release_id: str, topic: str) -> None:
             "topic": topic,
             "job_type": "generate_topic",
             "status": "generating",
-            "started_at": datetime.utcnow(),
+            "started_at": utc_now_naive(),
             "finished_at": None,
             "duration_seconds": None,
             "error_type": None,
             "error_message": None,
-        }, "$inc": {"attempts": 1}, "$setOnInsert": {"created_at": datetime.utcnow()}},
+        }, "$inc": {"attempts": 1}, "$setOnInsert": {"created_at": utc_now_naive()}},
         upsert=True,
     )
 
@@ -353,8 +354,8 @@ async def _process_topic(
             "verification_version": LESSON_VERIFICATION_VERSION,
             "status": "generating",
             "verified": False,
-            "updated_at": datetime.utcnow(),
-        }, "$setOnInsert": {"generated_at": datetime.utcnow()}}, upsert=True)
+            "updated_at": utc_now_naive(),
+        }, "$setOnInsert": {"generated_at": utc_now_naive()}}, upsert=True)
         lesson = None
         last_error: Exception | None = None
         for attempt in range(3):
@@ -378,7 +379,7 @@ async def _process_topic(
                 "status": "rejected",
                 "verified": False,
                 "verification_error": f"{type(last_error).__name__}: {last_error}",
-                "updated_at": datetime.utcnow(),
+                "updated_at": utc_now_naive(),
             }}, upsert=True)
             logger.error("Lección %s/%s rechazada tras 3 intentos", topic, variant)
             continue
@@ -394,7 +395,7 @@ async def _process_topic(
             "status": "ready",
             "verified": True,
             "generation_metadata": {"provider": os.getenv("LLM_PROVIDER", "ollama")},
-            "updated_at": datetime.utcnow(),
+            "updated_at": utc_now_naive(),
         }
         await generated_lessons_collection.update_one(key, {"$set": document}, upsert=True)
         counts["generated"] += 1
@@ -738,7 +739,7 @@ async def _run_topic(
         await content_jobs_collection.update_one({"job_id": job_id}, {"$set": {
             **counts,
             "status": "ready",
-            "finished_at": datetime.utcnow(),
+            "finished_at": utc_now_naive(),
             "duration_seconds": time.monotonic() - start,
             "error_type": None,
             "error_message": None,
@@ -752,7 +753,7 @@ async def _run_topic(
             "status": "failed",
             "error_type": type(error).__name__,
             "error_message": str(error),
-            "finished_at": datetime.utcnow(),
+            "finished_at": utc_now_naive(),
             "duration_seconds": time.monotonic() - start,
         }})
         logger.exception("Falló el trabajo del tema %s", topic)

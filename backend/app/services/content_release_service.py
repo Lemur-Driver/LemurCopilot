@@ -5,6 +5,8 @@ from typing import Any
 
 from bson import ObjectId
 
+from app.models import utc_now_naive
+
 from app.database import (
     content_catalog_collection,
     content_chunks_collection,
@@ -109,7 +111,7 @@ async def validate_release(release_id: str, minimum_questions: int) -> list[str]
         raise ValueError(f"No se puede validar un release en estado {release.get('status')}")
     await content_releases_collection.update_one(
         {"release_id": release_id},
-        {"$set": {"status": "validating", "validation_started_at": datetime.utcnow()}},
+        {"$set": {"status": "validating", "validation_started_at": utc_now_naive()}},
     )
 
     topics = release.get("topics", [])
@@ -141,7 +143,7 @@ async def validate_release(release_id: str, minimum_questions: int) -> list[str]
 
     update: dict[str, Any] = {
         "validation_errors": errors,
-        "validated_at": datetime.utcnow(),
+        "validated_at": utc_now_naive(),
     }
     update["status"] = "ready" if not errors else "validating"
     await content_releases_collection.update_one({"release_id": release_id}, {"$set": update})
@@ -170,7 +172,7 @@ async def publish_release(release_id: str, minimum_questions: int) -> list[str]:
                 await generated_lessons_collection.update_many({
                     "topic": topic, "language": "es", "release_id": release_id,
                     "status": "ready", "verified": True,
-                }, {"$set": {"status": "published", "updated_at": datetime.utcnow()}}, session=session)
+                }, {"$set": {"status": "published", "updated_at": utc_now_naive()}}, session=session)
                 await exercises_collection.update_many({
                     "topic": topic, "language": "es", "release_id": release_id,
                     "status": "ready", "verified": True,
@@ -178,11 +180,11 @@ async def publish_release(release_id: str, minimum_questions: int) -> list[str]:
                 }, {"$set": {"status": "published"}}, session=session)
             await content_releases_collection.update_one({"release_id": release_id}, {"$set": {
                 "status": "published",
-                "published_at": datetime.utcnow(),
+                "published_at": utc_now_naive(),
             }}, session=session)
             await content_catalog_collection.update_one(
                 {"_id": CATALOG_ID},
-                {"$set": {"topics": merged_topics, "updated_at": datetime.utcnow()}},
+                {"$set": {"topics": merged_topics, "updated_at": utc_now_naive()}},
                 upsert=True,
                 session=session,
             )

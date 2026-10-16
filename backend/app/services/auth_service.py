@@ -1,12 +1,11 @@
 import os
-from datetime import datetime
 
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from pymongo import ReturnDocument
 
 from app.database import students_collection
-from app.models import Student
+from app.models import Student, utc_now_naive
 
 GOOGLE_CLIENT_ID = os.environ["GOOGLE_CLIENT_ID"]
 
@@ -49,7 +48,7 @@ async def upsert_student_from_google(profile: dict) -> Student:
     una vez creado el documento (es la clave estable de identidad, a diferencia del
     email que en teoría podría variar en la cuenta de Google).
     """
-    now = datetime.utcnow()
+    now = utc_now_naive()
 
     result = await students_collection.find_one_and_update(
         {"google_sub": profile["google_sub"]},

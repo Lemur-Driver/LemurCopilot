@@ -9,6 +9,7 @@ from app.routes.auth import router as auth_router
 from app.routes.rag import router as rag_router
 from app.routes.lessons import router as lessons_router
 from app.routes.chat import router as chat_router
+from app.routes.agent import router as agent_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,6 +34,7 @@ app.include_router(auth_router)
 app.include_router(rag_router)
 app.include_router(lessons_router)
 app.include_router(chat_router)
+app.include_router(agent_router)
  
 @app.get("/")
 def root():

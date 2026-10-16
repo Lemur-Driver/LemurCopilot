@@ -4,6 +4,7 @@ from app.agents.graph import agent_graph
 from app.agents.profile import build_agent_profile
 from app.models import ConceptMasteryEntry, Student
 from app.agents.runner import run_agent_for_student
+from unittest.mock import AsyncMock, patch
 
 class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
     def test_graph_selects_strategy_and_preserves_input(self):
@@ -72,6 +73,7 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_runner_builds_profile_and_invokes_graph(self):
         student = Student(
+            id="507f1f77bcf86cd799439011",
             google_sub="test-user",
             name="Estudiante de prueba",
             email="test@example.com",
@@ -97,7 +99,26 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
             },
         )
 
-        result = await run_agent_for_student(student, "C1.1")
+        recent_activity = [{
+            "topic": "C1.1",
+            "completed_at": "2026-10-15T12:00:00",
+            "score": 0.67,
+            "correct_answers": 2,
+            "incorrect_answers": 1,
+        }]
+
+        with patch(
+            "app.agents.runner.get_recent_quiz_activity",
+            new_callable=AsyncMock,
+            return_value=recent_activity,
+        ) as get_activity:
+            result = await run_agent_for_student(student, "C1.1")
+
+        get_activity.assert_awaited_once_with(student.id)
+        self.assertEqual(
+            result["learner_profile"]["recent_quiz_activity"],
+            recent_activity,
+        )
 
         self.assertEqual(result["strategy"], "reinforcement")
         self.assertEqual(result["learner_profile"]["topic"], "C1.1")
@@ -112,6 +133,16 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
             "question_count": 3,
         })
 
+
+async def test_runner_rejects_unconfigured_topic(self):
+        student = Student(
+            google_sub="test-user",
+            name="Estudiante de prueba",
+            email="test@example.com",
+        )
+
+        with self.assertRaisesRegex(ValueError, "configuración pedagógica"):
+            await run_agent_for_student(student, "C99.99")
 
 if __name__ == "__main__":
     unittest.main()
