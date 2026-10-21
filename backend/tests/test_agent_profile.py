@@ -11,17 +11,15 @@ class AgentProfileTests(unittest.TestCase):
             name="Estudiante de prueba",
             email="test@example.com",
             mastery={
-                "C1": {
-                    "1": {
-                        "score": 0.5,
-                        "last_score": 0.5,
-                        "best_score": 0.7,
-                        "attempts": 2,
-                    }
+                "C1_2": {
+                    "score": 0.5,
+                    "last_score": 0.5,
+                    "best_score": 0.7,
+                    "attempts": 2,
                 }
             },
             concept_mastery={
-                "C1.1": {
+                "C1_2": {
                     "distancia_reaccion": ConceptMasteryEntry(
                         attempts=2,
                         correct=1,
@@ -34,7 +32,7 @@ class AgentProfileTests(unittest.TestCase):
                         }],
                     ),
                 },
-                "C1.2": {
+                "C1_3": {
                     "otro_concepto": ConceptMasteryEntry(
                         attempts=1,
                         correct=1,
@@ -44,9 +42,9 @@ class AgentProfileTests(unittest.TestCase):
             },
         )
 
-        profile = build_agent_profile(student, "C1.1")
+        profile = build_agent_profile(student, "C1.2")
 
-        self.assertEqual(profile["topic"], "C1.1")
+        self.assertEqual(profile["topic"], "C1.2")
         self.assertEqual(profile["current_mastery"]["last_score"], 0.5)
         self.assertEqual(
             [concept["tag"] for concept in profile["concepts"]],
@@ -69,7 +67,7 @@ class AgentProfileTests(unittest.TestCase):
             email="new@example.com",
         )
 
-        profile = build_agent_profile(student, "C1.1")
+        profile = build_agent_profile(student, "C1.2")
 
         self.assertIsNone(profile["current_mastery"])
         self.assertEqual(profile["concepts"], [])

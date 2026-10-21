@@ -165,7 +165,7 @@ Piezas clave:
 
 ### 2.4.5 `content_service.py` — acceso al contenido
 
-`get_topic_chunks(topic)`: lee todos los chunks de un tema (`C1.1`, `C2.2`, …) **sin** el campo `embedding` (proyección), ordenados por `page` y `chunk_index`. Es la fuente de contexto para la generación de lecciones y quizzes.
+`get_topic_chunks(topic)`: lee todos los chunks de un tema (`C1.2`, `C2.2`, …) **sin** el campo `embedding` (proyección), ordenados por `page` y `chunk_index`. Es la fuente de contexto para la generación de lecciones y quizzes.
 
 ### 2.4.6 `lesson_service.py` — generación de lecciones
 
@@ -217,7 +217,7 @@ Implementa la lógica de selección de ejercicios para la futura capa adaptativa
 
 | Constante | Propósito |
 |-----------|-----------|
-| `LESSON_CONFIGS` | **Configuración pedagógica por tema** (`C1.1`, `C1.2`, `C2.1`, …): `learning_goal`, `teaching_strategy`, `lesson_focus[]`, `quiz_focus`. Es el "currículo" del sistema: dicta qué debe aprender el estudiante y cómo enseñarlo. |
+| `LESSON_CONFIGS` | **Configuración pedagógica por tema** (`C1.2`, `C1.3`, `C2.1`, …): `learning_goal`, `teaching_strategy`, `lesson_focus[]`, `quiz_focus`. Es el "currículo" del sistema: dicta qué debe aprender el estudiante y cómo enseñarlo. |
 | `BASE_LESSON_PROMPT` | Instrucciones base del generador de lecciones (rol, estructura JSON exigida). |
 | `BASE_QUIZ_PROMPT` | Instrucciones base del generador de quizzes. |
 

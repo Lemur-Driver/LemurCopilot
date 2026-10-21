@@ -1,4 +1,5 @@
 from app.models import Student, get_mastery_entry
+from app.services.mastery_service import mastery_topic_key
 
 
 # ============================================================
@@ -16,9 +17,9 @@ COURSE_UNITS = [
     {
         "id": "unit-1",
         "lessons": [
-            "C1",
             "C1.1",
             "C1.2",
+            "C1.3",
         ],
     },
     {
@@ -32,13 +33,12 @@ COURSE_UNITS = [
     {
         "id": "unit-3",
         "lessons": [
-            "C3",
+            "C3.1",
         ],
     },
     {
         "id": "unit-4",
         "lessons": [
-            "C4",
             "C4.1",
             "C4.2",
             "C4.3",
@@ -46,25 +46,26 @@ COURSE_UNITS = [
             "C4.5",
             "C4.6",
             "C4.7",
+            "C4.8",
         ],
     },
     {
         "id": "unit-5",
         "lessons": [
-            "C5",
             "C5.1",
+            "C5.2",
         ],
     },
     {
         "id": "unit-6",
         "lessons": [
-            "C6",
             "C6.1",
             "C6.2",
             "C6.3",
             "C6.4",
             "C6.5",
             "C6.6",
+            "C6.7",
         ],
     },
     {
@@ -110,15 +111,16 @@ ANNEX_TOPICS = {
 # COMPLETAR LECCIÓN
 # ============================================================
 
+def _get_topic_mastery(student: Student, topic: str):
+    return get_mastery_entry(student.mastery, mastery_topic_key(topic))
+
+
 def is_lesson_completed(
     student: Student,
     topic: str,
 ) -> bool:
 
-    mastery = get_mastery_entry(
-        student.mastery,
-        topic,
-    )
+    mastery = _get_topic_mastery(student, topic)
 
     if mastery is None:
         return False

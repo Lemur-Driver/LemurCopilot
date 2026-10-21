@@ -129,8 +129,8 @@ Los modelos de referencia viven en [`backend/app/models.py`](../backend/app/mode
 | `name` / `picture` | string | Perfil visible; `picture` opcional. |
 | `created_at` / `last_login` | datetime | Auditoría de ciclo de vida. |
 | `current_unit` | string \| null | Unidad en la que está trabajando. |
-| `mastery` | objeto (`dict[str, MasteryEntry]`) | **Modelo de dominio por tema**: mapa `topic` (`C1.1`, `C1.2`, …) → `{ score, last_score, best_score, attempts, last_seen }`. Se mantiene como resumen general. |
-| `concept_mastery` | objeto | Mapa `topic → concept_tag → { attempts, correct, incorrect, last_score, last_seen, recent_errors, misconception_counts }`. Se crea vacío para estudiantes existentes y se actualiza desde respuestas calificadas de ejercicios etiquetados. |
+| `mastery` | objeto (`dict[str, MasteryEntry]`) | **Modelo de dominio por tema**: mapa `topic` (`C1_1`, `C1_2`, …) → `{ score, last_score, best_score, attempts, last_seen }`. Las claves planas con guion bajo evitan que los puntos de los códigos se interpreten como rutas anidadas en MongoDB. |
+| `concept_mastery` | objeto | Mapa `topic_key → concept_tag → { attempts, correct, incorrect, last_score, last_seen, recent_errors, misconception_counts }`, usando las mismas claves planas. Se crea vacío para estudiantes existentes y se actualiza desde respuestas calificadas de ejercicios etiquetados. |
 
 Escritura: únicamente por `upsert_student_from_google()` (`$set` perfil + `$setOnInsert` identidad).
 
@@ -147,7 +147,7 @@ Escritura: únicamente por `upsert_student_from_google()` (`$set` perfil + `$set
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `topic` | string | Pool curricular al que pertenece la pregunta (`C1.1`, `C1.2`, …). |
+| `topic` | string | Pool curricular al que pertenece la pregunta (`C1.2`, `C1.3`, …). |
 | `concept_id` | ObjectId o null | Concepto evaluado, opcional mientras el catálogo de conceptos no esté conectado al quiz. |
 | `type` | enum | `multiple_choice` \| `true_false` \| `open`. |
 | `question` / `options` / `correct_index` | — | Enunciado, alternativas y posición de la solución. |
@@ -183,8 +183,8 @@ Escritura: únicamente por `upsert_student_from_google()` (`$set` perfil + `$set
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | `course` | string | Identificador del curso (`clase-b-conaset-2024`). Permite convivencia de varios manuales. |
-| `unit` | string | Unidad (`C1`, `C2`, …). |
-| `topic` | string | **Clave de negocio** (`C1.1`, `C2.2`, …): une la ingesta, `LESSON_CONFIGS` y el `course.ts` del frontend. |
+| `unit` | string | Unidad (`C1.1`, `C2`, …). |
+| `topic` | string | **Clave de negocio** (`C1.2`, `C2.2`, …): une la ingesta, `LESSON_CONFIGS` y el `course.ts` del frontend. |
 | `title` | string | Título del tema. |
 | `source` | string | Documento fuente (`manual_conduccion_clase_b`). |
 | `page` | int | Página impresa del manual → **citación** en la UI. |

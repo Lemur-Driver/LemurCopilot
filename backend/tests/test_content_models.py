@@ -16,7 +16,7 @@ class ContentModelTests(unittest.TestCase):
 
     def test_generated_lesson_requires_catalog_metadata(self):
         lesson = GeneratedLesson.model_validate({
-            "topic": "C1.1",
+            "topic": "C1.2",
             "variant": "standard",
             "lesson": {"title": "Título"},
             "content_version": "conaset-clase-b-2026-10",
@@ -30,7 +30,7 @@ class ContentModelTests(unittest.TestCase):
     def test_generated_lesson_rejects_unknown_variant(self):
         with self.assertRaises(ValidationError):
             GeneratedLesson.model_validate({
-                "topic": "C1.1",
+                "topic": "C1.2",
                 "variant": "adaptive",
                 "lesson": {},
                 "content_version": "v1",
@@ -41,7 +41,7 @@ class ContentModelTests(unittest.TestCase):
 
     def test_release_and_job_validate_lifecycle_data(self):
         release = ContentRelease.model_validate({"release_id": "r1", "content_version": "v1"})
-        job = ContentJob.model_validate({"job_id": "j1", "release_id": "r1", "topic": "C1.1"})
+        job = ContentJob.model_validate({"job_id": "j1", "release_id": "r1", "topic": "C1.2"})
         self.assertEqual(release.status, "building")
         self.assertEqual(job.status, "pending")
         self.assertIsInstance(job.created_at, datetime)

@@ -4,11 +4,42 @@ from datetime import datetime
 from app.models import ConceptMasteryEntry, Student
 from app.services.mastery_service import (
     build_concept_mastery_update,
+    mastery_topic_key,
     summarize_quiz_concept_scores,
 )
+from app.services.progress_service import COURSE_UNITS, is_lesson_completed
 
 
 class ConceptMasteryTests(unittest.TestCase):
+    def test_course_codes_are_normalized_and_mastery_keys_are_flat(self):
+        for unit in COURSE_UNITS:
+            expected_prefix = f"C{unit['id'].removeprefix('unit-')}."
+            self.assertTrue(all(topic.startswith(expected_prefix) for topic in unit["lessons"]))
+        self.assertEqual(mastery_topic_key("C1.1"), "C1_1")
+        update = build_concept_mastery_update(
+            "C1.1", ["seguridad"], [], correct=True,
+            exercise_id="exercise-0", question="Pregunta", timestamp=datetime(2026, 10, 14),
+        )
+        self.assertIn("concept_mastery.C1_1.seguridad.attempts", update["$inc"])
+        student = Student.model_validate({
+            "google_sub": "student-sub",
+            "name": "Student",
+            "email": "student@example.com",
+            "mastery": {"C1_1": {"best_score": 1.0}},
+        })
+        self.assertTrue(is_lesson_completed(student, "C1.1"))
+        self.assertFalse(is_lesson_completed(student, "C1.2"))
+
+    def test_legacy_flattened_mastery_topic_keys_remain_readable(self):
+        student = Student.model_validate({
+            "google_sub": "legacy-sub",
+            "name": "Legacy",
+            "email": "legacy@example.com",
+            "mastery": {"C1_1": {"best_score": 1.0}},
+        })
+        self.assertEqual(student.mastery["C1_1"].best_score, 1.0)
+        self.assertEqual(student.mastery["C1_1"].attempts, 0)
+
     def test_existing_student_defaults_to_empty_concept_mastery(self):
         student = Student(google_sub="google-sub", name="Student", email="student@example.com")
         self.assertEqual(student.concept_mastery, {})
@@ -20,29 +51,29 @@ class ConceptMasteryTests(unittest.TestCase):
     def test_correct_answer_increments_unique_concepts(self):
         now = datetime(2026, 10, 14)
         update = build_concept_mastery_update(
-            "C1.1", ["Velocidad segura", "velocidad-segura", "distancia de reacción"], [],
+            "C1.2", ["Velocidad segura", "velocidad-segura", "distancia de reacción"], [],
             correct=True, exercise_id="exercise-1", question="Pregunta", timestamp=now,
         )
         self.assertEqual(update["$inc"], {
-            "concept_mastery.C1.1.distancia_de_reaccion.attempts": 1,
-            "concept_mastery.C1.1.distancia_de_reaccion.correct": 1,
-            "concept_mastery.C1.1.velocidad_segura.attempts": 1,
-            "concept_mastery.C1.1.velocidad_segura.correct": 1,
+            "concept_mastery.C1_2.distancia_de_reaccion.attempts": 1,
+            "concept_mastery.C1_2.distancia_de_reaccion.correct": 1,
+            "concept_mastery.C1_2.velocidad_segura.attempts": 1,
+            "concept_mastery.C1_2.velocidad_segura.correct": 1,
         })
-        self.assertEqual(update["$set"]["concept_mastery.C1.1.velocidad_segura.last_seen"], now)
+        self.assertEqual(update["$set"]["concept_mastery.C1_2.velocidad_segura.last_seen"], now)
         self.assertNotIn("$push", update)
 
     def test_wrong_answer_tracks_misconceptions_and_caps_recent_errors(self):
         update = build_concept_mastery_update(
-            "C1.1", ["velocidad_segura"], ["confunde limite legal", "confunde-limite-legal"],
+            "C1.2", ["velocidad_segura"], ["confunde limite legal", "confunde-limite-legal"],
             correct=False, exercise_id="exercise-2", question="Pregunta", timestamp=datetime(2026, 10, 14),
         )
         self.assertEqual(update["$inc"], {
-            "concept_mastery.C1.1.velocidad_segura.attempts": 1,
-            "concept_mastery.C1.1.velocidad_segura.incorrect": 1,
-            "concept_mastery.C1.1.velocidad_segura.misconception_counts.confunde_limite_legal": 1,
+            "concept_mastery.C1_2.velocidad_segura.attempts": 1,
+            "concept_mastery.C1_2.velocidad_segura.incorrect": 1,
+            "concept_mastery.C1_2.velocidad_segura.misconception_counts.confunde_limite_legal": 1,
         })
-        error = update["$push"]["concept_mastery.C1.1.velocidad_segura.recent_errors"]
+        error = update["$push"]["concept_mastery.C1_2.velocidad_segura.recent_errors"]
         self.assertEqual(error["$slice"], -10)
         self.assertEqual(error["$each"][0]["exercise_id"], "exercise-2")
         self.assertEqual(error["$each"][0]["misconception_tags"], ["confunde_limite_legal"])
@@ -60,7 +91,7 @@ class ConceptMasteryTests(unittest.TestCase):
 
     def test_unlabeled_legacy_question_does_not_modify_concept_mastery(self):
         self.assertIsNone(build_concept_mastery_update(
-            "C1.1", [], [], correct=False, exercise_id="exercise-3", question="Pregunta", timestamp=datetime(2026, 10, 14),
+            "C1.2", [], [], correct=False, exercise_id="exercise-3", question="Pregunta", timestamp=datetime(2026, 10, 14),
         ))
 
     def test_concept_mastery_model_defaults_and_validates(self):

@@ -27,7 +27,7 @@ class AgentActivityServiceTests(unittest.IsolatedAsyncioTestCase):
     async def test_returns_recent_quiz_summary_without_question_text(self):
         cursor = FakeCursor([
             {
-                "quiz_topic": "C1.1",
+                "quiz_topic": "C1.2",
                 "completed_at": None,
                 "score": 2 / 3,
                 "answers": [
@@ -55,7 +55,7 @@ class AgentActivityServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cursor.sort_args, ("completed_at", -1))
         self.assertEqual(cursor.limit_value, 10)
         self.assertEqual(result, [{
-            "topic": "C1.1",
+            "topic": "C1.2",
             "completed_at": None,
             "score": 2 / 3,
             "correct_answers": 2,

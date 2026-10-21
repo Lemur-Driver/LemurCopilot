@@ -136,7 +136,7 @@ def _question_generation_stop_reason(
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Genera y verifica contenido educativo offline.")
     target = parser.add_mutually_exclusive_group(required=True)
-    target.add_argument("--topic", help="Genera un tema específico (por ejemplo C1.1).")
+    target.add_argument("--topic", help="Genera un tema específico (por ejemplo C1.3).")
     target.add_argument("--all", action="store_true", help="Procesa todos los temas configurados.")
     target.add_argument("--failed", action="store_true", help="Reintenta los temas con trabajos fallidos.")
     parser.add_argument("--force", action="store_true", help="Regenera el contenido existente para el tema.")

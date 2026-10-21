@@ -44,12 +44,12 @@ Script: [`backend/app/scripts/ingest_manual.py`](../backend/app/scripts/ingest_m
 El temario se declara como una tabla de rangos de páginas impresas:
 
 ```python
-{ "unit": "C1", "topic": "C1.1",
+{ "unit": "C1.1", "topic": "C1.2",
   "title": "Estadísticas de siniestros en Chile",
   "start_page": 8, "end_page": 8 }
 ```
 
-Cubre hoy las unidades **C1** (siniestros de tránsito), **C2** (el automóvil y las leyes físicas), **C3** (convivencia vial) y **C4** (la persona en el tránsito, C4.1–C4.7). Antes de procesar, `validate_topics()` comprueba que los rangos sean coherentes y existan en el PDF (*fail fast*).
+Cubre hoy las unidades **C1.1** (siniestros de tránsito), **C2** (el automóvil y las leyes físicas), **C3.1** (convivencia vial) y **C4.1** (la persona en el tránsito, C4.2–C4.8). Antes de procesar, `validate_topics()` comprueba que los rangos sean coherentes y existan en el PDF (*fail fast*).
 
 ### 5.2.2 Extracción y limpieza
 
@@ -141,7 +141,7 @@ Antes de validar, `clean_json_response()` retira los fences ```` ```json ```` y 
 ```mermaid
 flowchart TB
     subgraph Leccion["🎓 Generación de lección (por tema)"]
-        T["topic (C1.1…)"] --> CFG["LESSON_CONFIGS[topic]<br/>objetivo + estrategia + focos"]
+        T["topic (C1.2…)"] --> CFG["LESSON_CONFIGS[topic]<br/>objetivo + estrategia + focos"]
         T --> ALL["get_topic_chunks<br/>(TODOS los chunks)"]
         CFG --> PL["BASE_LESSON_PROMPT<br/>+ tema + contexto"]
         ALL --> PL
@@ -177,7 +177,7 @@ En runtime, `POST /lessons/{topic}/quiz` resuelve el release publicado y selecci
 
 Cada pregunta entregada lleva un `exerciseId`. Al completar el quiz, el backend corrige contra `exercises`, registra la respuesta en `sessions` y actualiza el mastery. El cliente no es la fuente de verdad de la respuesta correcta.
 
-Durante la generación, cada pregunta debe superar validaciones estructurales, citas literales de chunks del tema, deduplicación por fingerprint/similitud y verificación semántica independiente. Para `C1.1`, además se requiere aprobación manual antes de publicar.
+Durante la generación, cada pregunta debe superar validaciones estructurales, citas literales de chunks del tema, deduplicación por fingerprint/similitud y verificación semántica independiente. Para `C1.2`, además se requiere aprobación manual antes de publicar.
 | Fuentes devueltas | Páginas deduplicadas del tema | Páginas deduplicadas de los chunks usados |
 
 ---

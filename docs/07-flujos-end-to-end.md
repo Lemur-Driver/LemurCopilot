@@ -69,15 +69,15 @@ sequenceDiagram
         Worker->>DB: Guardar release en ready
         Worker->>DB: Validar y publicar release; actualizar content_catalog
     end
-    U->>FE: Abre clase (C1.1)
+    U->>FE: Abre clase (C1.2)
     FE->>FE: Busca clase en course.ts
-    FE->>BE: POST /lessons/generate/C1.1
+    FE->>BE: POST /lessons/generate/C1.2
     BE->>DB: Resolver release publicado y leer lección standard
     DB-->>BE: Lección + fuentes
     BE-->>FE: 200 { topic, lesson, sources }
     FE->>FE: Renderiza lección + fuentes citadas
     U->>FE: Clic "Tomar quiz"
-    FE->>BE: POST /lessons/C1.1/quiz
+    FE->>BE: POST /lessons/C1.2/quiz
     BE->>DB: Resolver release activo y seleccionar preguntas publicadas verificadas
     alt No hay release o pool elegible insuficiente
         BE-->>FE: 503; generar/publicar pool con content-worker

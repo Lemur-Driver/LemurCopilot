@@ -1,15 +1,14 @@
 LESSON_SEQUENCE = [
-    "C1",
     "C1.1",
     "C1.2",
+    "C1.3",
 
     "C2.1",
     "C2.2",
     "C2.3",
 
-    "C3",
+    "C3.1",
 
-    "C4",
     "C4.1",
     "C4.2",
     "C4.3",
@@ -17,17 +16,18 @@ LESSON_SEQUENCE = [
     "C4.5",
     "C4.6",
     "C4.7",
+    "C4.8",
 
-    "C5",
     "C5.1",
+    "C5.2",
 
-    "C6",
     "C6.1",
     "C6.2",
     "C6.3",
     "C6.4",
     "C6.5",
     "C6.6",
+    "C6.7",
 
     "C7.1",
     "C7.2",
@@ -59,10 +59,10 @@ LESSON_SEQUENCE = [
 LESSON_CONFIGS = {
 
     # ========================================================
-    # C1 - LOS SINIESTROS DE TRÁNSITO
+    # C1.1 - LOS SINIESTROS DE TRÁNSITO
     # ========================================================
 
-    "C1": {
+    "C1.1": {
         "learning_goal": """
         El estudiante debe comprender por qué los hechos viales
         deben entenderse como siniestros de tránsito y reconocer
@@ -96,7 +96,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C1.1": {
+    "C1.2": {
         "learning_goal": """
         El estudiante debe interpretar las principales estadísticas
         de siniestros de tránsito en Chile e identificar factores
@@ -136,7 +136,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C1.2": {
+    "C1.3": {
         "learning_goal": """
         El estudiante debe comprender el enfoque de Sistema Seguro
         y sus principios fundamentales para prevenir muertes y
@@ -284,10 +284,10 @@ LESSON_CONFIGS = {
 
 
     # ========================================================
-    # C3 - CONVIVENCIA VIAL
+    # C3.1 - CONVIVENCIA VIAL
     # ========================================================
 
-    "C3": {
+    "C3.1": {
         "learning_goal": """
         El estudiante debe comprender los principios de convivencia
         vial y reconocer la importancia del respeto, la empatía,
@@ -320,10 +320,10 @@ LESSON_CONFIGS = {
 
 
     # ========================================================
-    # C4 - LA PERSONA EN EL TRÁNSITO
+    # C4.1 - LA PERSONA EN EL TRÁNSITO
     # ========================================================
 
-    "C4": {
+    "C4.1": {
         "learning_goal": """
         El estudiante debe comprender cómo las capacidades humanas,
         la percepción, la atención y la experiencia influyen
@@ -355,7 +355,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C4.1": {
+    "C4.2": {
         "learning_goal": """
         El estudiante debe reconocer cómo las emociones y el
         estado psicológico pueden modificar su conducta al volante.
@@ -385,7 +385,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C4.2": {
+    "C4.3": {
         "learning_goal": """
         El estudiante debe identificar comportamientos sociales
         y personales que pueden aumentar el riesgo durante
@@ -413,7 +413,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C4.3": {
+    "C4.4": {
         "learning_goal": """
         El estudiante debe comprender los efectos del alcohol
         sobre la conducción, su relación con el riesgo de
@@ -444,7 +444,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C4.4": {
+    "C4.5": {
         "learning_goal": """
         El estudiante debe comprender cómo diferentes drogas
         pueden alterar las capacidades necesarias para conducir.
@@ -475,7 +475,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C4.5": {
+    "C4.6": {
         "learning_goal": """
         El estudiante debe comprender que determinadas enfermedades
         pueden afectar la capacidad para conducir y reconocer
@@ -505,7 +505,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C4.6": {
+    "C4.7": {
         "learning_goal": """
         El estudiante debe reconocer que determinados medicamentos
         pueden afectar las capacidades necesarias para conducir.
@@ -535,7 +535,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C4.7": {
+    "C4.8": {
         "learning_goal": """
         El estudiante debe reconocer los síntomas y consecuencias
         del cansancio, sueño y fatiga y saber cuándo debe detener
@@ -568,10 +568,10 @@ LESSON_CONFIGS = {
 
 
     # ========================================================
-    # C5 - USUARIOS VULNERABLES
+    # C5.1 - USUARIOS VULNERABLES
     # ========================================================
 
-    "C5": {
+    "C5.1": {
         "learning_goal": """
         El estudiante debe identificar a las y los usuarios
         vulnerables y comprender por qué requieren especial
@@ -603,7 +603,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C5.1": {
+    "C5.2": {
         "learning_goal": """
         El estudiante debe comprender las medidas de seguridad
         para transportar niñas y niños y la función de los
@@ -637,10 +637,10 @@ LESSON_CONFIGS = {
 
 
     # ========================================================
-    # C6 - NORMAS DE CIRCULACIÓN
+    # C6.1 - NORMAS DE CIRCULACIÓN
     # ========================================================
 
-    "C6": {
+    "C6.1": {
         "learning_goal": """
         El estudiante debe comprender cómo se regula el tránsito
         y reconocer la jerarquía de las instrucciones y señales.
@@ -667,7 +667,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C6.1": {
+    "C6.2": {
         "learning_goal": """
         El estudiante debe reconocer los principales tipos
         de señales de tránsito y comprender su función.
@@ -696,7 +696,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C6.2": {
+    "C6.3": {
         "learning_goal": """
         El estudiante debe comprender las principales reglas
         que ordenan la circulación y aplicar correctamente
@@ -727,7 +727,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C6.3": {
+    "C6.4": {
         "learning_goal": """
         El estudiante debe comprender los límites de velocidad
         y saber adaptar su velocidad a las condiciones reales
@@ -759,7 +759,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C6.4": {
+    "C6.5": {
         "learning_goal": """
         El estudiante debe comprender cómo realizar encuentros,
         adelantamientos y sobrepasos de manera segura.
@@ -789,7 +789,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C6.5": {
+    "C6.6": {
         "learning_goal": """
         El estudiante debe conocer las reglas para estacionar
         y detenerse sin crear riesgos ni obstrucciones.
@@ -821,7 +821,7 @@ LESSON_CONFIGS = {
     },
 
 
-    "C6.6": {
+    "C6.7": {
         "learning_goal": """
         El estudiante debe comprender los riesgos de los cruces
         ferroviarios y aplicar las precauciones necesarias

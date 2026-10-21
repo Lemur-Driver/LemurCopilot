@@ -120,7 +120,7 @@ Recibe una `Unit` y pinta: cabecera de unidad (código + título), barra de prog
 
 ### 3.4.2 `LessonCard.tsx`
 
-Botón-tarjeta con número de parada, código (`C1.1`), duración estimada, título y descripción. Al hacer clic: `navigate('/lesson/' + lesson.id)`.
+Botón-tarjeta con número de parada, código (`C1.2`), duración estimada, título y descripción. Al hacer clic: `navigate('/lesson/' + lesson.id)`.
 
 ### 3.4.3 `Quiz.tsx`
 
@@ -174,7 +174,7 @@ Animación de carga temática mostrada mientras el backend genera la lección (p
 
 ## 3.5 Datos estáticos: `data/course.ts`
 
-Define el temario navegable (`Unit[]` → `Lesson[]` con `id`, `code`, `title`, `description`). Hoy cubre Unidad 1 (C1.1, C1.2) y Unidad 2 (C2.1–C2.3).
+Define el temario navegable (`Unit[]` → `Lesson[]` con `id`, `code`, `title`, `description`). Hoy cubre Unidad 1 (C1.2, C1.3) y Unidad 2 (C2.1–C2.3).
 
 > ⚠️ Marcado en código como temporal: *"POR AHORA, LUEGO ESTO DEBE VENIR DE BACKEND"*. El `id` de cada lección **es la clave de unión** con el backend: debe existir una entrada homónima en `LESSON_CONFIGS` (prompts) y chunks con ese `topic` en MongoDB.
 

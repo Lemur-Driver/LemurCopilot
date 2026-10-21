@@ -19,13 +19,13 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(score=score):
                 profile = {"current_mastery": {"last_score": score}}
                 result = agent_graph.invoke({
-                    "topic": "C1.1",
+                    "topic": "C1.2",
                     "learner_profile": profile,
                 })
 
                 self.assertEqual(result["focus_concepts"], [])
                 self.assertEqual(result["strategy"], expected_strategy)
-                self.assertEqual(result["topic"], "C1.1")
+                self.assertEqual(result["topic"], "C1.2")
                 self.assertEqual(result["learner_profile"], profile)
                 self.assertTrue(result["decision_reason"])
 
@@ -35,17 +35,15 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
             name="Estudiante de prueba",
             email="test@example.com",
             mastery={
-                "C1": {
-                    "1": {
-                        "score": 0.5,
-                        "last_score": 0.4,
-                        "best_score": 0.7,
-                        "attempts": 2,
-                    }
+                "C1_2": {
+                    "score": 0.5,
+                    "last_score": 0.4,
+                    "best_score": 0.7,
+                    "attempts": 2,
                 }
             },
             concept_mastery={
-                "C1.1": {
+                "C1_2": {
                     "distancia_reaccion": ConceptMasteryEntry(
                         attempts=2,
                         correct=1,
@@ -56,16 +54,16 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
             },
         )
 
-        profile = build_agent_profile(student, "C1.1")
+        profile = build_agent_profile(student, "C1.2")
         result = agent_graph.invoke({
-            "topic": "C1.1",
+            "topic": "C1.2",
             "learner_profile": profile,
         })
 
         self.assertEqual(result["focus_concepts"], ["distancia_reaccion"])
         self.assertTrue(result["focus_reason"])
         self.assertEqual(result["strategy"], "reinforcement")
-        self.assertEqual(result["learner_profile"]["topic"], "C1.1")
+        self.assertEqual(result["learner_profile"]["topic"], "C1.2")
         self.assertEqual(
             result["learner_profile"]["weak_concepts"][0]["tag"],
             "distancia_reaccion",
@@ -78,17 +76,15 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
             name="Estudiante de prueba",
             email="test@example.com",
             mastery={
-                "C1": {
-                    "1": {
-                        "score": 0.4,
-                        "last_score": 0.4,
-                        "best_score": 0.6,
-                        "attempts": 2,
-                    }
+                "C1_2": {
+                    "score": 0.4,
+                    "last_score": 0.4,
+                    "best_score": 0.6,
+                    "attempts": 2,
                 }
             },
             concept_mastery={
-                "C1.1": {
+                "C1_2": {
                     "distancia_reaccion": ConceptMasteryEntry(
                         attempts=2,
                         correct=0,
@@ -100,7 +96,7 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
         )
 
         recent_activity = [{
-            "topic": "C1.1",
+            "topic": "C1.2",
             "completed_at": "2026-10-15T12:00:00",
             "score": 0.67,
             "correct_answers": 2,
@@ -112,7 +108,7 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
             new_callable=AsyncMock,
             return_value=recent_activity,
         ) as get_activity:
-            result = await run_agent_for_student(student, "C1.1")
+            result = await run_agent_for_student(student, "C1.2")
 
         get_activity.assert_awaited_once_with(student.id)
         self.assertEqual(
@@ -121,13 +117,13 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(result["strategy"], "reinforcement")
-        self.assertEqual(result["learner_profile"]["topic"], "C1.1")
+        self.assertEqual(result["learner_profile"]["topic"], "C1.2")
         self.assertEqual(
             result["learner_profile"]["weak_concepts"][0]["tag"],
             "distancia_reaccion",
         )
         self.assertEqual(result["content_request"], {
-            "topic": "C1.1",
+            "topic": "C1.2",
             "lesson_variant": "reinforcement",
             "focus_concepts": ["distancia_reaccion"],
             "question_count": 3,

@@ -87,21 +87,21 @@ Verifica criptográficamente el `id_token` emitido por Google Identity Services 
 
 Genera la mini-lección en vivo y no genera preguntas. El pool se prepara fuera de línea con `content-worker`; la asignación concreta del quiz se realiza mediante `POST /lessons/{topic}/quiz`. Sin cuerpo en el request; todo va en el path.
 
-**Parámetros de ruta:** `topic` — código del tema (`C1.1`, `C1.2`, `C2.1`, `C2.2`, `C2.3`, …). Debe existir:
+**Parámetros de ruta:** `topic` — código del tema (`C1.2`, `C1.3`, `C2.1`, `C2.2`, `C2.3`, …). Debe existir:
 1. en `LESSON_CONFIGS` (configuración pedagógica), y
 2. como `topic` con chunks en `manual_chunks` (ingestado).
 
 **Ejemplo:**
 
 ```bash
-curl -X POST http://localhost:8000/lessons/generate/C1.1
+curl -X POST http://localhost:8000/lessons/generate/C1.2
 ```
 
 **Response `200 OK`:**
 
 ```json
 {
-  "topic": "C1.1",
+  "topic": "C1.2",
   "lesson": {
     "title": "Estadísticas de siniestros en Chile",
     "introduction": "Texto introductorio de la lección…",
@@ -137,7 +137,7 @@ curl -X POST http://localhost:8000/lessons/generate/C1.1
 
 Asigna al estudiante autenticado tres preguntas verificadas del release publicado y crea una sesión de quiz. Este endpoint no llama al LLM ni genera preguntas. Las preguntas devueltas incluyen `exerciseId`, `question` y `options`; la clave correcta y la explicación no se envían antes de responder.
 
-Si no hay un release publicado o no contiene tres preguntas elegibles, responde `503`. Genera el pool con `content-worker`, completa la revisión manual requerida para `C1.1`, valida el release y publícalo antes de iniciar quizzes.
+Si no hay un release publicado o no contiene tres preguntas elegibles, responde `503`. Genera el pool con `content-worker`, completa la revisión manual requerida para `C1.2`, valida el release y publícalo antes de iniciar quizzes.
 
 **Response `200 OK`:**
 

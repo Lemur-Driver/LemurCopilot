@@ -70,12 +70,12 @@ La verificación de lecciones contrasta sujeto, indicador, población, periodo y
 Por ejemplo, para generar y publicar un tema:
 
 ```powershell
-docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.2
 docker compose run --rm content-worker python -m app.jobs.manage_content validate release-XXXXXXXXXXXX
 docker compose run --rm content-worker python -m app.jobs.manage_content publish release-XXXXXXXXXXXX
 ```
 
-Para `C1.1`, completa además la revisión manual requerida antes de validar/publicar. El mínimo de preguntas publicables sigue siendo 15 por defecto y se controla con `CONTENT_WORKER_MINIMUM_QUESTIONS`.
+Para `C1.2`, completa además la revisión manual requerida antes de validar/publicar. El mínimo de preguntas publicables sigue siendo 15 por defecto y se controla con `CONTENT_WORKER_MINIMUM_QUESTIONS`.
 
 ### Cómo se conectan durante una generación
 
@@ -86,7 +86,7 @@ Para `C1.1`, completa además la revisión manual requerida antes de validar/pub
 5. **Persistencia y estado.** Los documentos se asocian con tema, idioma, release y versiones de contenido/prompt/verificador. El trabajo por tema queda registrado en `content_jobs`. Si ocurre un error, se registra como `failed` con el tipo y mensaje; los errores no se ocultan.
 6. **Publicación separada.** La generación deja los candidatos aceptados en `ready`. `manage_content.py` y `content_release_service.py` realizan la validación final y, si corresponde, la publicación a `published`.
 
-La verificación automatizada reduce errores y conserva trazabilidad hacia las fuentes, pero no sustituye la revisión humana exigida para el tema piloto `C1.1` antes de validar su release.
+La verificación automatizada reduce errores y conserva trazabilidad hacia las fuentes, pero no sustituye la revisión humana exigida para el tema piloto `C1.2` antes de validar su release.
 
 ## Colecciones MongoDB
 
@@ -108,7 +108,7 @@ La generación y su ciclo de vida se reparten entre estas colecciones. Algunas c
 - **Contenido (`generated_lessons.status` y `exercises.status`):** el generado y verificado queda en `ready`; la publicación lo transforma en `published`. Los elementos rechazados se conservan con sus datos de error para poder investigar el resultado.
 - **Catálogo:** solamente se actualiza al publicar. Por eso crear contenido en `ready` no lo hace automáticamente visible como contenido activo para estudiantes.
 
-El tema `C1.1` es un caso especial: sus preguntas generadas o migradas requieren revisión manual aprobada. En consecuencia, un pool con suficientes preguntas verificadas puede no bastar para publicar ese tema hasta completar la revisión requerida.
+El tema `C1.2` es un caso especial: sus preguntas generadas o migradas requieren revisión manual aprobada. En consecuencia, un pool con suficientes preguntas verificadas puede no bastar para publicar ese tema hasta completar la revisión requerida.
 
 ## Ejecución
 
@@ -116,7 +116,7 @@ Requisitos: Docker Compose, `.env` con `MONGODB_URI`, `MONGODB_DATABASE` y la co
 
 ```powershell
 # Generar un tema (crea un release nuevo si no se indica uno)
-docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.2
 
 # Procesar todos los temas de LESSON_SEQUENCE
 docker compose run --rm content-worker python -m app.jobs.generate_content --all
@@ -125,7 +125,7 @@ docker compose run --rm content-worker python -m app.jobs.generate_content --all
 docker compose run --rm content-worker python -m app.jobs.generate_content --failed
 
 # Regenerar el tema en un release: marca preguntas previas superseded
-docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1 --release-id release-XXXXXXXXXXXX --force
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.2 --release-id release-XXXXXXXXXXXX --force
 ```
 
 Opciones principales:
@@ -149,7 +149,7 @@ La cantidad objetivo de preguntas verificadas es **15 por tema** por defecto. El
 Las cuatro variables de entorno se configuran en el servicio `content-worker` de Compose y pueden sobrescribirse en `.env`. Ejemplo para probar un pool de 15 preguntas durante hasta 60 minutos, con máximo de 120 lotes y timeout de 4 minutos por lote:
 
 ```powershell
-docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1 --question-time-limit 3600 --question-timeout 240 --max-question-batches 120
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.2 --question-time-limit 3600 --question-timeout 240 --max-question-batches 120
 ```
 
 Al terminar el tiempo o los lotes sin alcanzar la meta, toma el `release_id` de la última línea `Falló el trabajo del tema` en el registro del worker o de `list-releases`, y vuelve a ejecutar el mismo tema con `--release-id ID`; para reanudar fallos en general se puede usar `--failed`. Ambos caminos conservan las preguntas verificadas. Para reanudar un release específico entre varios fallidos, combina `--failed --release-id ID`. La reanudación no evita la generación de lecciones rechazadas: primero debe existir una lección `standard` verificada. Puedes bajar la meta de preguntas con `--question-minimum` durante pruebas; la validación/publicación también debe usar el mismo mínimo, por ejemplo `docker compose run --rm content-worker python -m app.jobs.manage_content validate ID --minimum-questions 5`.
@@ -179,13 +179,13 @@ flowchart TD
     R --> M[Reintentar mismo tema y release; sin --force]
     M --> D
     P --> N{¿Requiere revisión manual?}
-    N -- C1.1 --> O[Revisar preguntas y luego validar/publicar release]
+    N -- C1.2 --> O[Revisar preguntas y luego validar/publicar release]
     N -- Otro tema --> O
 ```
 
 ## Revisión y publicación
 
-El paso habitual tras una generación correcta es revisar el release. El servicio administrativo también puede completar una migración/revisión de preguntas heredadas del piloto `C1.1`.
+El paso habitual tras una generación correcta es revisar el release. El servicio administrativo también puede completar una migración/revisión de preguntas heredadas del piloto `C1.2`.
 
 ```powershell
 # Ver releases existentes
@@ -204,7 +204,7 @@ docker compose run --rm content-worker python -m app.jobs.manage_content validat
 docker compose run --rm content-worker python -m app.jobs.manage_content publish release-XXXXXXXXXXXX --minimum-questions 5
 ```
 
-Para publicar, la validación exige una lección `standard` verificada y al menos el mínimo de preguntas elegibles por tema. Para `C1.1`, además se debe completar la verificación/revisión piloto configurada. La publicación actualiza en una transacción los estados de lección y pregunta, el release y `content_catalog`; ese catálogo permite que la aplicación resuelva cuál release publicado servir por tema.
+Para publicar, la validación exige una lección `standard` verificada y al menos el mínimo de preguntas elegibles por tema. Para `C1.2`, además se debe completar la verificación/revisión piloto configurada. La publicación actualiza en una transacción los estados de lección y pregunta, el release y `content_catalog`; ese catálogo permite que la aplicación resuelva cuál release publicado servir por tema.
 
 ## Límites de responsabilidad
 

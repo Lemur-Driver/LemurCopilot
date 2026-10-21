@@ -6,7 +6,6 @@ from typing import Any
 from bson import ObjectId
 
 from app.models import utc_now_naive
-
 from app.database import (
     content_catalog_collection,
     content_chunks_collection,

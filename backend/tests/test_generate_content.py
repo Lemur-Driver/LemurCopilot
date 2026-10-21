@@ -66,7 +66,7 @@ class GenerateContentTests(unittest.TestCase):
 
     def test_worker_options_configure_pool_target_and_limits(self):
         args = _parse_args([
-            "--topic", "C1.1",
+            "--topic", "C1.2",
             "--question-time-limit", "3600",
             "--question-timeout", "240",
             "--question-minimum", "20",
@@ -85,7 +85,7 @@ class GenerateContentTests(unittest.TestCase):
         self.assertIsNone(_question_generation_stop_reason(4, 15, 20, 0, 10, 0))
 
     def test_verified_questions_from_same_release_are_kept_and_deduplicated(self):
-        fingerprint = question_fingerprint("C1.1", "Pregunta única", ["A", "B", "C", "D"], 0, "release-1")
+        fingerprint = question_fingerprint("C1.2", "Pregunta única", ["A", "B", "C", "D"], 0, "release-1")
         questions = [
             {"_id": "one", "fingerprint": fingerprint, "question": "Pregunta única"},
             {"_id": "duplicate", "fingerprint": fingerprint, "question": "Pregunta única"},
@@ -98,7 +98,7 @@ class GenerateContentTests(unittest.TestCase):
         collection.update_many = AsyncMock()
 
         with patch("app.jobs.generate_content.exercises_collection", collection):
-            result = asyncio.run(_load_verified_questions("C1.1", "release-1"))
+            result = asyncio.run(_load_verified_questions("C1.2", "release-1"))
 
         self.assertEqual([item["_id"] for item in result], ["one", "two"])
         collection.update_many.assert_awaited_once()

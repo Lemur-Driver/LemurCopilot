@@ -22,15 +22,15 @@ class QuestionPoolServiceTests(unittest.TestCase):
         )
 
     def test_fingerprint_is_stable_for_equivalent_input(self):
-        first = question_fingerprint("C1.1", "¿Qué es la velocidad?", ["A", "B", "C", "D"], 0)
-        second = question_fingerprint("C1.1", " ¿QUÉ es la velocidad? ", ["A", "B", "C", "D"], 0)
+        first = question_fingerprint("C1.2", "¿Qué es la velocidad?", ["A", "B", "C", "D"], 0)
+        second = question_fingerprint("C1.2", " ¿QUÉ es la velocidad? ", ["A", "B", "C", "D"], 0)
         self.assertEqual(first, second)
 
     def test_fingerprint_changes_with_topic_options_or_correct_index(self):
-        original = question_fingerprint("C1.1", "Pregunta", ["A", "B", "C", "D"], 0)
-        different_topic = question_fingerprint("C1.2", "Pregunta", ["A", "B", "C", "D"], 0)
-        different_options = question_fingerprint("C1.1", "Pregunta", ["A", "B", "C", "E"], 0)
-        different_answer = question_fingerprint("C1.1", "Pregunta", ["A", "B", "C", "D"], 1)
+        original = question_fingerprint("C1.2", "Pregunta", ["A", "B", "C", "D"], 0)
+        different_topic = question_fingerprint("C1.3", "Pregunta", ["A", "B", "C", "D"], 0)
+        different_options = question_fingerprint("C1.2", "Pregunta", ["A", "B", "C", "E"], 0)
+        different_answer = question_fingerprint("C1.2", "Pregunta", ["A", "B", "C", "D"], 1)
         self.assertNotEqual(original, different_topic)
         self.assertNotEqual(original, different_options)
         self.assertNotEqual(original, different_answer)
@@ -89,10 +89,10 @@ class QuestionPoolServiceTests(unittest.TestCase):
         cursor = AsyncMock()
         cursor.to_list.return_value = []
         with patch("app.services.question_pool_service.exercises_collection.find", return_value=cursor) as find:
-            asyncio.run(_pool_documents("C1.1", "release-1"))
+            asyncio.run(_pool_documents("C1.2", "release-1"))
 
         find.assert_called_once_with({
-            "topic": "C1.1",
+            "topic": "C1.2",
             "language": "es",
             "release_id": "release-1",
             "status": "published",
@@ -135,7 +135,7 @@ class QuestionPoolServiceTests(unittest.TestCase):
             patch("app.services.question_pool_service.exercises_collection.update_one", new=AsyncMock()),
             patch("app.services.quiz_service.generate_quiz", new=AsyncMock(side_effect=AssertionError("generation must stay in the worker"))) as generate,
         ):
-            quiz = asyncio.run(select_quiz(str(ObjectId()), "C1.1", "release-1"))
+            quiz = asyncio.run(select_quiz(str(ObjectId()), "C1.2", "release-1"))
 
         self.assertEqual(len(quiz["questions"]), 3)
         self.assertEqual(insert.await_args.args[0]["quiz_release_id"], "release-1")

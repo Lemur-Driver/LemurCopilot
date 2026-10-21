@@ -28,24 +28,24 @@ export const course: Unit[] = [
 
     lessons: [
       {
-        id: 'C1',
-        code: 'C1',
+        id: 'C1.1',
+        code: 'C1.1',
         title: 'Los siniestros de tránsito',
         description:
           'Comprende por qué los siniestros de tránsito son prevenibles y cómo las decisiones de las personas influyen en su ocurrencia.',
       },
 
       {
-        id: 'C1.1',
-        code: 'C1.1',
+        id: 'C1.2',
+        code: 'C1.2',
         title: 'Estadísticas de siniestros en Chile',
         description:
           'Conoce las principales estadísticas, factores de riesgo y características de los siniestros de tránsito en Chile.',
       },
 
       {
-        id: 'C1.2',
-        code: 'C1.2',
+        id: 'C1.3',
+        code: 'C1.3',
         title: 'Sistema Seguro',
         description:
           'Comprende el enfoque de Sistema Seguro, la responsabilidad compartida y la importancia de reducir las consecuencias de los errores humanos.',
@@ -102,8 +102,8 @@ export const course: Unit[] = [
 
     lessons: [
       {
-        id: 'C3',
-        code: 'C3',
+        id: 'C3.1',
+        code: 'C3.1',
         title: 'Convivencia Vial',
         description:
           'Comprende cómo el respeto, la responsabilidad, la educación vial y la consideración hacia otras personas contribuyen a una convivencia segura.',
@@ -123,64 +123,64 @@ export const course: Unit[] = [
 
     lessons: [
       {
-        id: 'C4',
-        code: 'C4',
+        id: 'C4.1',
+        code: 'C4.1',
         title: 'La persona en el tránsito',
         description:
           'Comprende cómo la percepción, la atención, la experiencia y las capacidades humanas influyen en la conducción.',
       },
 
       {
-        id: 'C4.1',
-        code: 'C4.1',
+        id: 'C4.2',
+        code: 'C4.2',
         title: 'La conducción segura requiere equilibrio emocional',
         description:
           'Analiza cómo las emociones, la agresividad, el estrés y la empatía pueden afectar el comportamiento al conducir.',
       },
 
       {
-        id: 'C4.2',
-        code: 'C4.2',
+        id: 'C4.3',
+        code: 'C4.3',
         title: 'Conductas que implican riesgos',
         description:
           'Identifica comportamientos y decisiones que pueden aumentar el riesgo durante la conducción.',
       },
 
       {
-        id: 'C4.3',
-        code: 'C4.3',
+        id: 'C4.4',
+        code: 'C4.4',
         title: 'Sobre el alcohol en la conducción',
         description:
           'Comprende cómo el alcohol afecta las capacidades necesarias para conducir y por qué aumenta el riesgo de siniestros.',
       },
 
       {
-        id: 'C4.4',
-        code: 'C4.4',
+        id: 'C4.5',
+        code: 'C4.5',
         title: 'Las drogas y estupefacientes',
         description:
           'Conoce cómo distintas drogas pueden alterar la percepción, el tiempo de reacción y la capacidad para conducir de forma segura.',
       },
 
       {
-        id: 'C4.5',
-        code: 'C4.5',
+        id: 'C4.6',
+        code: 'C4.6',
         title: 'Enfermedades que pueden afectar a la conducción',
         description:
           'Comprende cómo determinadas enfermedades pueden influir en la conducción y qué precauciones debe tomar una persona conductora.',
       },
 
       {
-        id: 'C4.6',
-        code: 'C4.6',
+        id: 'C4.7',
+        code: 'C4.7',
         title: 'Medicamentos que pueden afectar a la conducción',
         description:
           'Identifica medicamentos que pueden disminuir la atención, provocar somnolencia o afectar otras capacidades necesarias para conducir.',
       },
 
       {
-        id: 'C4.7',
-        code: 'C4.7',
+        id: 'C4.8',
+        code: 'C4.8',
         title: 'Cansancio, sueño y fatiga',
         description:
           'Reconoce los efectos del cansancio y el sueño al volante y aprende cuándo detenerse y descansar.',
@@ -200,16 +200,16 @@ export const course: Unit[] = [
 
     lessons: [
       {
-        id: 'C5',
-        code: 'C5',
+        id: 'C5.1',
+        code: 'C5.1',
         title: 'Las y los usuarios vulnerables',
         description:
           'Aprende a identificar y proteger a peatones, personas mayores, ciclistas, motociclistas y otros usuarios especialmente vulnerables.',
       },
 
       {
-        id: 'C5.1',
-        code: 'C5.1',
+        id: 'C5.2',
+        code: 'C5.2',
         title: 'Niñas y niños en el automóvil',
         description:
           'Conoce las medidas de seguridad y los sistemas de retención necesarios para transportar niñas y niños de forma segura.',
@@ -229,56 +229,56 @@ export const course: Unit[] = [
 
     lessons: [
       {
-        id: 'C6',
-        code: 'C6',
+        id: 'C6.1',
+        code: 'C6.1',
         title: 'Normas de circulación',
         description:
           'Introduce las principales normas que permiten organizar el tránsito y circular de forma segura y predecible.',
       },
 
       {
-        id: 'C6.1',
-        code: 'C6.1',
+        id: 'C6.2',
+        code: 'C6.2',
         title: 'Señales de tránsito',
         description:
           'Aprende el significado y la función de semáforos, señales verticales, demarcaciones y otras formas de regulación del tránsito.',
       },
 
       {
-        id: 'C6.2',
-        code: 'C6.2',
+        id: 'C6.3',
+        code: 'C6.3',
         title: 'Las reglas del tránsito',
         description:
           'Comprende las reglas de circulación, preferencias de paso, virajes, cambios de pista y otras maniobras habituales.',
       },
 
       {
-        id: 'C6.3',
-        code: 'C6.3',
+        id: 'C6.4',
+        code: 'C6.4',
         title: 'La velocidad',
         description:
           'Conoce los límites de velocidad y aprende a adaptar la velocidad a las condiciones de la vía, el clima y el tránsito.',
       },
 
       {
-        id: 'C6.4',
-        code: 'C6.4',
+        id: 'C6.5',
+        code: 'C6.5',
         title: 'Encuentros y adelantamientos',
         description:
           'Aprende cómo enfrentar cruces con otros vehículos y realizar adelantamientos y sobrepasos de forma segura.',
       },
 
       {
-        id: 'C6.5',
-        code: 'C6.5',
+        id: 'C6.6',
+        code: 'C6.6',
         title: 'Estacionamiento y detención',
         description:
           'Conoce dónde y cómo estacionar o detener un vehículo sin generar riesgos ni interferir con la circulación.',
       },
 
       {
-        id: 'C6.6',
-        code: 'C6.6',
+        id: 'C6.7',
+        code: 'C6.7',
         title: 'Cruces ferroviarios',
         description:
           'Aprende las precauciones y obligaciones necesarias para atravesar cruces ferroviarios de forma segura.',
