@@ -6,6 +6,7 @@ export interface AuthContextValue {
   token: string | null
   loading: boolean
   login: (data: AuthUser & { access_token: string }) => void
+  loginGuest: () => void
   logout: () => void
   authFetch: (path: string, init?: RequestInit) => Promise<Response>
 }
