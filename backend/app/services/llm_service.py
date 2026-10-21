@@ -29,6 +29,7 @@ GEMINI_API_KEY = os.environ[
 GEMINI_MODEL = os.environ[
     "GEMINI_MODEL"
 ]
+LLM_REQUEST_TIMEOUT_SECONDS = float(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "300"))
 
 
 gemini_client = genai.Client(
@@ -87,6 +88,7 @@ async def generate_with_ollama(
 
         "options": {
             "temperature": 0.2,
+            "num_ctx": int(os.getenv("OLLAMA_NUM_CTX", "16384")),
         },
     }
     
@@ -94,12 +96,11 @@ async def generate_with_ollama(
         payload["format"] = "json"
 
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=LLM_REQUEST_TIMEOUT_SECONDS) as client:
 
         response = await client.post(
             f"{OLLAMA_URL}/api/chat",
             json=payload,
-            timeout=120,
         )
         
     if not response.is_success:

@@ -371,7 +371,15 @@ async def _process_topic(
                 lesson = None
                 if attempt < 2:
                     await generated_lessons_collection.update_one(key, {"$set": {"status": "generating"}})
-                logger.warning("Intento %s/3 fallido para %s/%s: %s", attempt + 1, topic, variant, error)
+                logger.warning(
+                    "Intento %s/3 fallido para %s/%s: %s: %s",
+                    attempt + 1,
+                    topic,
+                    variant,
+                    type(error).__name__,
+                    error or repr(error),
+                    exc_info=True,
+                )
         if lesson is None:
             counts["rejected"] += 1
             counts["verification_failures"] += 1
@@ -480,6 +488,7 @@ async def _process_topic(
                 "Batch de preguntas interrumpido/rechazado para %s: %s",
                 topic,
                 error,
+                exc_info=True,
             )
 
             partial_candidates = await exercises_collection.find(

@@ -551,7 +551,12 @@ Recuerda:
         expected_count=question_count,
     )
 
-    return await verify_quiz(
+    verified_quiz = await verify_quiz(
         quiz,
         chunks,
     )
+    if len(verified_quiz["questions"]) != question_count:
+        raise ValueError(
+            f"El verificador aceptó {len(verified_quiz['questions'])}/{question_count} preguntas"
+        )
+    return verified_quiz
