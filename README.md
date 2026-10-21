@@ -7,7 +7,15 @@ El sistema construye un modelo del conocimiento del estudiante y utiliza un agen
 
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/49e0bbe4-6ca3-437b-97a2-b968c413073f" />
 
+Demo en línea
 
+Explora LemurCopilot directamente desde tu navegador, sin necesidad de instalación ni registro.
+
+**[Probar LemurCopilot](https://lemur-driver.github.io/LemurCopilot/)**
+
+La demostración permite acceder como invitado, explorar la interfaz de la aplicación y conocer su propuesta de aprendizaje adaptativo.
+
+Nota: Esta es una versión demostrativa del frontend, alojada en GitHub Pages. Las funcionalidades que requieren conexión con el backend, como la tutoría mediante inteligencia artificial, no están disponibles en el modo demo.
 
 ## Stack
 
