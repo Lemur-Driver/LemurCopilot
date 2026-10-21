@@ -2,12 +2,22 @@ import math
 from typing import Any
 
 from app.agents.state import AgentState
+from app.services.agent_content_service import retrieve_agent_content
 
 
 def choose_strategy(state: AgentState) -> dict[str, Any]:
     profile = state.get("learner_profile", {})
     mastery = profile.get("current_mastery") or {}
     last_score = mastery.get("last_score")
+
+    if last_score is None:
+        last_score = next((
+            activity.get("score")
+            for activity in profile.get("recent_quiz_activity", [])
+            if isinstance(activity, dict)
+            and activity.get("topic") == state.get("topic")
+            and activity.get("score") is not None
+        ), None)
 
     if (
         not isinstance(last_score, (int, float))
@@ -70,3 +80,20 @@ def build_content_request(state: AgentState) -> dict[str, Any]:
             "question_count": 3,
         }
     }
+
+
+async def retrieve_content(state: AgentState) -> dict[str, Any]:
+    try:
+        return await retrieve_agent_content(
+            topic=state["topic"],
+            strategy=state["strategy"],
+            focus_concepts=state.get("focus_concepts", []),
+        )
+    except Exception as error:
+        return {
+            "release_id": None,
+            "lesson": None,
+            "lesson_variant": None,
+            "exercises": [],
+            "content_errors": [f"Falló la recuperación de contenido: {type(error).__name__}"],
+        }

@@ -1,13 +1,13 @@
 import unittest
+from unittest.mock import AsyncMock, patch
 
 from app.agents.graph import agent_graph
 from app.agents.profile import build_agent_profile
 from app.models import ConceptMasteryEntry, Student
 from app.agents.runner import run_agent_for_student
-from unittest.mock import AsyncMock, patch
 
 class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
-    def test_graph_selects_strategy_and_preserves_input(self):
+    async def test_graph_selects_strategy_and_preserves_input(self):
         cases = [
             (None, "standard"),
             (0.4, "reinforcement"),
@@ -16,9 +16,19 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
         ]
 
         for score, expected_strategy in cases:
-            with self.subTest(score=score):
+            with self.subTest(score=score), patch(
+                "app.agents.nodes.retrieve_agent_content",
+                new_callable=AsyncMock,
+                return_value={
+                    "release_id": None,
+                    "lesson": None,
+                    "lesson_variant": None,
+                    "exercises": [],
+                    "content_errors": [],
+                },
+            ):
                 profile = {"current_mastery": {"last_score": score}}
-                result = agent_graph.invoke({
+                result = await agent_graph.ainvoke({
                     "topic": "C1.2",
                     "learner_profile": profile,
                 })
@@ -29,7 +39,7 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(result["learner_profile"], profile)
                 self.assertTrue(result["decision_reason"])
 
-    def test_graph_uses_strategy_from_summarized_student_profile(self):
+    async def test_graph_uses_strategy_from_summarized_student_profile(self):
         student = Student(
             google_sub="test-user",
             name="Estudiante de prueba",
@@ -55,7 +65,7 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
         )
 
         profile = build_agent_profile(student, "C1.2")
-        result = agent_graph.invoke({
+        result = await agent_graph.ainvoke({
             "topic": "C1.2",
             "learner_profile": profile,
         })
@@ -107,7 +117,17 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
             "app.agents.runner.get_recent_quiz_activity",
             new_callable=AsyncMock,
             return_value=recent_activity,
-        ) as get_activity:
+        ) as get_activity, patch(
+            "app.agents.nodes.retrieve_agent_content",
+            new_callable=AsyncMock,
+            return_value={
+                "release_id": "release-1",
+                "lesson": {"lesson": {"title": "Lección"}},
+                "lesson_variant": "reinforcement",
+                "exercises": [{"_id": "1"}, {"_id": "2"}, {"_id": "3"}],
+                "content_errors": [],
+            },
+        ):
             result = await run_agent_for_student(student, "C1.2")
 
         get_activity.assert_awaited_once_with(student.id)
@@ -128,17 +148,27 @@ class AgentGraphTests(unittest.IsolatedAsyncioTestCase):
             "focus_concepts": ["distancia_reaccion"],
             "question_count": 3,
         })
+        self.assertEqual(result["lesson_variant"], "reinforcement")
+        self.assertEqual(result["release_id"], "release-1")
+        self.assertEqual(len(result["exercises"]), 3)
 
 
-async def test_runner_rejects_unconfigured_topic(self):
+    async def test_runner_rejects_unconfigured_topic(self):
         student = Student(
+            id="507f1f77bcf86cd799439011",
             google_sub="test-user",
             name="Estudiante de prueba",
             email="test@example.com",
         )
 
-        with self.assertRaisesRegex(ValueError, "configuración pedagógica"):
-            await run_agent_for_student(student, "C99.99")
+        with patch(
+            "app.agents.runner.get_recent_quiz_activity",
+            new_callable=AsyncMock,
+        ) as get_activity:
+            with self.assertRaisesRegex(ValueError, "configuración pedagógica"):
+                await run_agent_for_student(student, "C99.99")
+
+        get_activity.assert_not_awaited()
 
 if __name__ == "__main__":
     unittest.main()

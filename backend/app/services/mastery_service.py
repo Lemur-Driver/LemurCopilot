@@ -73,7 +73,7 @@ def build_concept_mastery_update(
         }]
 
     for concept in concepts:
-        prefix = f"concept_mastery.{topic}.{concept}"
+        prefix = f"concept_mastery.{mastery_topic_key(topic)}.{concept}"
         increments[f"{prefix}.attempts"] = 1
         increments[f"{prefix}.correct" if correct else f"{prefix}.incorrect"] = 1
         sets[f"{prefix}.last_seen"] = timestamp

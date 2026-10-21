@@ -13,6 +13,7 @@ from app.prompts.lesson_prompts import LESSON_CONFIGS
 from app.services.progress_service import build_course_progress, PASSING_SCORE
 from app.services.mastery_service import (
     build_concept_mastery_update,
+    mastery_topic_key,
     normalize_mastery_tag,
     summarize_quiz_concept_scores,
 )
@@ -251,18 +252,19 @@ async def save_quiz_result(request: QuizResultRequest, student: Student = Depend
     now = utc_now_naive()
     score = sum(answer["is_correct"] for answer in answers) / len(answers)
     topic = assignment["quiz_topic"]
-    current = get_mastery_entry(student.mastery, topic)
+    current = get_mastery_entry(student.mastery, mastery_topic_key(topic))
     attempts = (current.attempts if current else 0) + 1
     previous_best = (current.best_score if current and current.best_score is not None else current.score if current else 0.0)
     best_score = max(score, previous_best)
 
     concept_scores = summarize_quiz_concept_scores(answers, len(assigned_ids))
+    topic_key = mastery_topic_key(topic)
     concept_score_paths = {
-        f"concept_mastery.{topic}.{concept}.score": value
+        f"concept_mastery.{topic_key}.{concept}.score": value
         for concept, value in concept_scores.items()
     }
     concept_last_score_paths = {
-        f"concept_mastery.{topic}.{concept}.last_score": value
+        f"concept_mastery.{topic_key}.{concept}.last_score": value
         for concept, value in concept_scores.items()
     }
 
@@ -283,14 +285,14 @@ async def save_quiz_result(request: QuizResultRequest, student: Student = Depend
             "$set": {
                 **concept_score_paths,
                 **concept_last_score_paths,
-                f"mastery.{topic}.score": score,
-                f"mastery.{topic}.last_score": score,
-                f"mastery.{topic}.best_score": best_score,
-                f"mastery.{topic}.last_seen": now,
+                f"mastery.{topic_key}.score": score,
+                f"mastery.{topic_key}.last_score": score,
+                f"mastery.{topic_key}.best_score": best_score,
+                f"mastery.{topic_key}.last_seen": now,
             },
-            "$inc": {f"mastery.{topic}.attempts": 1},
+            "$inc": {f"mastery.{topic_key}.attempts": 1},
             "$addToSet": {
-                f"mastery.{topic}.failed_questions": {
+                f"mastery.{topic_key}.failed_questions": {
                     "$each": [answer["question"] for answer in answers if not answer["is_correct"]],
                 },
             },

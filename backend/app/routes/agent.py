@@ -13,6 +13,16 @@ router = APIRouter(
 )
 
 
+def _public_exercise(exercise: dict) -> dict:
+    return {
+        "exerciseId": str(exercise["_id"]),
+        "question": exercise["question"],
+        "options": exercise["options"],
+        "conceptTags": exercise.get("concept_tags", []),
+        "difficulty": exercise.get("difficulty", 0.5),
+    }
+
+
 @router.post("/{topic}/plan")
 async def create_agent_plan(
     topic: str,
@@ -39,4 +49,12 @@ async def create_agent_plan(
         "focusConcepts": result["focus_concepts"],
         "focusReason": result["focus_reason"],
         "contentRequest": result["content_request"],
+        "releaseId": result.get("release_id"),
+        "lesson": result.get("lesson"),
+        "lessonVariant": result.get("lesson_variant"),
+        "exercises": [
+            _public_exercise(exercise)
+            for exercise in result.get("exercises", [])
+        ],
+        "contentErrors": result.get("content_errors", []),
     }

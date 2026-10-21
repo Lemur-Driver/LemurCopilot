@@ -18,6 +18,7 @@
 | POST | `/auth/google` | Login con Google (verifica `id_token`) | ✅ Activo |
 | POST | `/lessons/generate/{topic}` | Genera la lección de un tema en línea (compatibilidad temporal) | ✅ Activo (legacy) |
 | POST | `/lessons/{topic}/quiz` | Asigna tres preguntas del release publicado; no genera contenido | ✅ Activo (core) |
+| POST | `/agent/{topic}/plan` | Perfil adaptativo, estrategia y selección de lección/ejercicios publicados (experimental) | 🧪 Experimental |
 | POST | `/chat/stream` | Chat tutor con streaming NDJSON | ✅ Activo (core) |
 | POST | `/rag/search` | Búsqueda semántica en el manual | 🧪 Exploración |
 | POST | `/rag/ask` | QA directa sobre el manual | 🧪 Exploración |
@@ -25,7 +26,7 @@
 | GET | `/students/llm-test` | Ping al LLM | 🔧 Diagnóstico |
 | POST | `/students/chat` | Eco de prompt al LLM | 🔧 Diagnóstico |
 
-> 🔓 **Sin autenticación de peticiones todavía:** el login verifica identidad pero la API no emite ni exige sesión propia. Es deuda técnica conocida (hay `TODO` en `Login.tsx`).
+> 🔐 **Autenticación parcial:** los endpoints adaptativos del agente y de perfil de estudiante requieren bearer token LemurCopilot; revisa cada endpoint y su dependencia para conocer sus requisitos.
 
 ---
 
@@ -132,6 +133,12 @@ curl -X POST http://localhost:8000/lessons/generate/C1.2
 | `500` | El LLM devolvió JSON inválido/estructura no conforme, o fallo interno (detalle genérico, error logueado en servidor). |
 
 > ⏱️ **Latencia:** generar la mini-lección puede involucrar una llamada al LLM. La generación y verificación del pool se realiza previamente con `content-worker`, no durante una petición de quiz.
+
+### `POST /agent/{topic}/plan` (experimental)
+
+Requiere autenticación Bearer, tema configurado y desbloqueado. Devuelve la estrategia y foco adaptativos, el release activo, la lección elegible y hasta tres ejercicios publicados. No genera contenido ni crea una asignación de quiz. Si no hay contenido suficiente devuelve `contentErrors` y una lista vacía de ejercicios.
+
+La respuesta experimental contiene `topic`, `strategy`, `decisionReason`, `focusConcepts`, `focusReason`, `contentRequest`, `releaseId`, `lesson`, `lessonVariant`, `exercises` y `contentErrors`. Cada ejercicio se proyecta a `exerciseId`, `question`, `options`, `conceptTags` y `difficulty`; no incluye `correct_index` ni `correct_answer`.
 
 ### `POST /lessons/{topic}/quiz`
 

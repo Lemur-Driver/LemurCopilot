@@ -1,6 +1,7 @@
 from typing import Any
 
 from app.models import ConceptMasteryEntry, Student, get_mastery_entry
+from app.services.mastery_service import mastery_topic_key
 
 
 MAX_WEAK_CONCEPTS = 5
@@ -10,7 +11,8 @@ WEAK_SCORE_THRESHOLD = 0.6
 
 
 def build_agent_profile(student: Student, topic: str) -> dict[str, Any]:
-    topic_mastery = get_mastery_entry(student.mastery, topic)
+    topic_key = mastery_topic_key(topic)
+    topic_mastery = get_mastery_entry(student.mastery, topic_key)
     current_mastery = None
 
     if topic_mastery:
@@ -23,7 +25,7 @@ def build_agent_profile(student: Student, topic: str) -> dict[str, Any]:
 
     concepts = []
 
-    for tag, raw_entry in student.concept_mastery.get(topic, {}).items():
+    for tag, raw_entry in student.concept_mastery.get(topic_key, {}).items():
         entry = (
             raw_entry
             if isinstance(raw_entry, ConceptMasteryEntry)
