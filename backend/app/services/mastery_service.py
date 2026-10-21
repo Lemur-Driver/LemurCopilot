@@ -6,6 +6,11 @@ from typing import Any
 RECENT_ERROR_LIMIT = 10
 
 
+def mastery_topic_key(topic: str) -> str:
+    """Convert dotted lesson codes to safe flat keys for MongoDB updates."""
+    return topic.replace(".", "_")
+
+
 def normalize_mastery_tag(value: Any) -> str | None:
     if not isinstance(value, str):
         return None
