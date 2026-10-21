@@ -5,9 +5,9 @@ Herramienta complementaria de preparación para el examen teórico y aprendizaje
 
 El sistema construye un modelo del conocimiento del estudiante y utiliza un agente para adaptar dinámicamente la enseñanza, ejercicios y evaluaciones, fundamentándose en material oficial chileno.
 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/49e0bbe4-6ca3-437b-97a2-b968c413073f" />
 
-Demo en línea
+
+# Demo en línea
 
 Explora LemurCopilot directamente desde tu navegador, sin necesidad de instalación ni registro.
 
@@ -53,6 +53,8 @@ Swagger:
 http://localhost:8000/docs
 
 ## Demo & Preview
+
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/49e0bbe4-6ca3-437b-97a2-b968c413073f" />
 
 Ruta de lecciones
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/211d0dc1-164f-46e0-b358-0a1aca498be8" />
