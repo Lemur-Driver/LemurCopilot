@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.database import client, exercises_collection, sessions_collection, students_collection
@@ -59,6 +59,34 @@ async def get_course_progress(
             student
         )
     }
+
+
+@router.get("/me/activity")
+async def get_activity(
+    days: int = Query(default=365, ge=1, le=730),
+    student: Student = Depends(get_current_student),
+):
+    timezone = ZoneInfo("America/Santiago")
+    today = datetime.now(timezone).date()
+    start_date = today - timedelta(days=days - 1)
+    start_at = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone).astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+
+    cursor = sessions_collection.find(
+        {
+            "student_id": ObjectId(student.id),
+            "started_at": {"$gte": start_at},
+        },
+        {"started_at": 1},
+    )
+    activity_dates: set[str] = set()
+    async for session in cursor:
+        started_at = session.get("started_at")
+        if started_at is not None:
+            activity_dates.add(
+                started_at.replace(tzinfo=ZoneInfo("UTC")).astimezone(timezone).date().isoformat()
+            )
+
+    return {"days": sorted(activity_dates), "timezone": "America/Santiago"}
 
 
 @router.get("/me/dashboard")

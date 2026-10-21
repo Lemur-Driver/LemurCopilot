@@ -80,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             current_streak_days: 0,
           },
           '/students/me/course-progress': { units: [] },
+          '/students/me/activity?days=365': { days: [] },
         }
 
         if (Object.prototype.hasOwnProperty.call(mockData, path)) {

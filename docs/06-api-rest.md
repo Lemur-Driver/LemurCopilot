@@ -16,6 +16,13 @@
 | GET | `/` | Saludo de la API | ✅ Activo |
 | GET | `/health` | Healthcheck | ✅ Activo |
 | POST | `/auth/google` | Login con Google (verifica `id_token`) | ✅ Activo |
+| GET | `/students/me` | Perfil del estudiante autenticado | ✅ Activo |
+| GET | `/students/me/dashboard` | Resumen de progreso, XP y rachas | ✅ Activo |
+| GET | `/students/me/mastery` | Dominio e intentos por tema | ✅ Activo |
+| GET | `/students/me/course-progress` | Unidades desbloqueadas y completadas | ✅ Activo |
+| GET | `/students/me/activity?days=365` | Días activos recientes (máximo 730) en `America/Santiago` | ✅ Activo |
+| POST | `/students/me/quiz-answer` | Guarda respuesta de quiz | ✅ Activo |
+| POST | `/students/me/quiz-results` | Finaliza y guarda resultado de quiz | ✅ Activo |
 | POST | `/lessons/generate/{topic}` | Genera la lección de un tema en línea (compatibilidad temporal) | ✅ Activo (legacy) |
 | POST | `/lessons/{topic}/quiz` | Asigna tres preguntas del release publicado; no genera contenido | ✅ Activo (core) |
 | POST | `/agent/{topic}/plan` | Perfil adaptativo, estrategia y selección de lección/ejercicios publicados (experimental) | 🧪 Experimental |
@@ -82,7 +89,30 @@ Verifica criptográficamente el `id_token` emitido por Google Identity Services 
 
 ---
 
-## 6.4 Generación de lecciones (core)
+## 6.4 Perfil y actividad del estudiante
+
+Las rutas `/students/me*` requieren `Authorization: Bearer <access_token>` y solo devuelven información del estudiante autenticado.
+
+### `GET /students/me/activity?days=365`
+
+Devuelve las fechas con actividad en sesiones, calculadas por día en la zona horaria `America/Santiago`. El parámetro `days` es opcional (predeterminado 365, mínimo 1, máximo 730); la respuesta incluye días ordenados y la zona horaria:
+
+```json
+{
+  "days": ["2026-10-20", "2026-10-21"],
+  "timezone": "America/Santiago"
+}
+```
+
+El endpoint filtra las sesiones desde la fecha de inicio del período para no recorrer el historial completo. Una fecha indica actividad de sesión, no necesariamente que se haya aprobado una lección.
+
+### Resumen del perfil
+
+`GET /students/me` devuelve el perfil (incluida la fecha de creación); `/students/me/dashboard` entrega métricas agregadas, y `/students/me/mastery` el último dominio por tema. El XP es actualmente un contador simple de 40 puntos por lección aprobada, no una promesa de recompensas ni una métrica de preparación.
+
+---
+
+## 6.5 Generación de lecciones (core)
 
 ### `POST /lessons/generate/{topic}`
 

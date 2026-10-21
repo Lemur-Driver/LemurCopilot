@@ -4,4 +4,5 @@ export interface AuthUser {
   email: string
   name: string
   picture: string | null
+  created_at?: string
 }

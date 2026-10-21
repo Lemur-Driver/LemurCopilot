@@ -55,13 +55,15 @@ flowchart LR
     LS --> LL["LemurLoader"]
 ```
 
-| Ruta | Página | Datos que muestra |
-|------|--------|-------------------|
-| `/login` | `Login` | Botón de Google; errores de autenticación |
-| `/` | `Home` | Hero, estadísticas (mock), camino de aprendizaje por unidad |
-| `/lesson/:lessonId` | `Lesson` | Lección + quiz generados en vivo por el backend |
+| Ruta | Página | Acceso y datos que muestra |
+|------|--------|----------------------------|
+| `/login` | `Login` | Acceso con Google y modo invitado opcional en demo |
+| `/` | `Home` | Ruta de aprendizaje y progreso resumido (backend) |
+| `/lesson/:lessonId` | `Lesson` | Lección y quiz con persistencia en backend |
+| `/profile` | `Profile` | Datos de cuenta, progreso, XP simple, actividad y racha |
+| `/about`, `/contact`, `/privacy`, `/terms` | `InfoPage` | Información pública sobre Lemur y sus condiciones |
 
-> ⚠️ **Sin guardas de ruta todavía:** `/` y `/lesson/:id` son accesibles sin sesión; el login existe pero no protege rutas (hay un `TODO` en `Login.tsx` sobre persistir la sesión).
+Las rutas de aprendizaje y perfil están protegidas por `ProtectedRoute`; las páginas institucionales son públicas. `AppShell` presenta navegación, cuenta/cierre de sesión y enlaces legales.
 
 ---
 
@@ -69,17 +71,18 @@ flowchart LR
 
 ### 3.3.1 `Login.tsx`
 
-- Renderiza [`GoogleSignInButton`](#354-googlesigninbutton) dentro de una tarjeta de marca.
-- `handleSuccess(user)`: recibe el perfil verificado por el backend y navega a `/`. *TODO documentado en código:* persistir la sesión propia cuando el backend la emita.
-- `handleError(err)`: muestra mensaje de error amigable en la tarjeta.
+- Presenta una composición de dos paneles con el camino de aprendizaje, la mascota y el acceso con Google.
+- Renderiza [`GoogleSignInButton`](#354-googlesigninbutton); el modo invitado solo aparece cuando `VITE_DEMO_MODE=true`.
+- `handleSuccess(user)` persiste la sesión mediante `AuthContext` y navega a `/`; los errores se anuncian como alerta accesible.
+- Enlaza las páginas públicas de términos y privacidad.
 
 ### 3.3.2 `Home.tsx`
 
 Página de aterrizaje del estudiante. Composición declarativa:
 
-- **Topbar**: marca + estadísticas de gamificación (`🔥 racha`, `⭐ XP`) — *valores mock hardcodeados*.
+- **Cabecera compartida**: marca, enlaces de aprendizaje/perfil, cuenta y acción para salir.
 - **Hero**: propuesta de valor + CTA ancla (`#learning-path`) + mascota.
-- **Quick stats**: tarjetas de preparación/racha/clases — *mock*.
+- **Quick stats**: tarjetas de preparación, racha y clases completadas, obtenidas del backend.
 - **Learning path**: itera `course` (de `data/course.ts`) y renderiza un `<LearningPath/>` por unidad.
 
 ### 3.3.3 `Lesson.tsx` — la vista más rica
@@ -214,15 +217,41 @@ const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 ---
 
-## 3.8 Estado de la UI: qué es real y qué es mock
+## 3.8 Navegación, perfil y páginas públicas
+
+El `AppShell` comparte una cabecera de navegación y pie de página entre el camino de aprendizaje, las lecciones, el perfil y las páginas informativas. La opción «Salir» limpia la sesión y vuelve a `/login`; el chat global solo se monta para una sesión autenticada.
+
+| Ruta | Acceso | Contenido |
+|------|--------|----------|
+| `/` | Sesión requerida | Camino de aprendizaje y resumen del progreso |
+| `/lesson/:lessonId` | Sesión requerida | Lección, práctica y quiz |
+| `/profile` | Sesión requerida | Datos de cuenta, indicadores de aprendizaje, racha, calendario y actividad reciente |
+| `/about` | Pública | Propósito y enfoque educativo de Lemur |
+| `/contact` | Pública | Información de soporte y consultas institucionales |
+| `/privacy` | Pública | Resumen del uso de información y solicitudes de privacidad |
+| `/terms` | Pública | Alcance educativo y condiciones de uso |
+
+`Profile.tsx` combina `/students/me/dashboard`, `/students/me/mastery` y `/students/me/activity?days=365`. `ActivityCalendar.tsx` presenta actividad diaria por mes usando fechas locales de `America/Santiago`; permite navegar meses anteriores y no avanzar más allá del mes actual. Las páginas informativas están en `InfoPage.tsx`.
+
+**Pendiente antes de producción:** configurar el correo real de contacto y revisar con el responsable del servicio las políticas completas, conservación y eliminación de datos, entidad responsable, jurisdicción y fecha de vigencia. El contenido actual es informativo y no debe considerarse asesoría legal ni una política definitiva.
+
+El perfil muestra XP como un contador sencillo (40 puntos por clase aprobada) y no atribuye recompensas ni lo usa como medida de preparación. La preparación se presenta por separado como porcentaje de clases aprobadas.
+
+## 3.9 Estado de la UI: qué es real y qué es mock
 
 | Elemento | Fuente |
 |----------|--------|
 | Temario (unidades/clases) | Estático (`course.ts`) |
-| Lección y quiz | **Backend + LLM (real, generado en vivo)** |
-| Chat con fuentes citadas | **Backend RAG (real)** |
-| Racha, XP, % preparación, clases completadas | Mock hardcodeado en `Home.tsx` |
-| Barra de progreso por unidad | Mock (0%) en `LearningPath.tsx` |
+| Lección y quiz | **Backend + contenido generado** |
+| Chat con fuentes citadas | **Backend RAG** |
+| Preparación, racha, XP, clases e intentos | **Backend: resumen del tablero** |
+| Calendario | **Backend: fechas de actividad de sesiones en Santiago** |
+| Actividad reciente | **Backend: dominio por lección** |
+| Barra de progreso por unidad | `LearningPath.tsx` y `course-progress` |
+
+## 3.10 Accesibilidad y presentación
+
+La navegación y el calendario cuentan con nombres accesibles, los errores se anuncian mediante regiones de alerta, los enlaces y controles tienen un indicador `:focus-visible`, y las animaciones respetan `prefers-reduced-motion`. Las páginas públicas son accesibles sin iniciar sesión; las rutas de aprendizaje y cuenta permanecen protegidas.
 
 ---
 
