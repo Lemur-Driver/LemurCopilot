@@ -22,6 +22,7 @@ from app.prompts.lesson_prompts import LESSON_CONFIGS, LESSON_SEQUENCE
 from app.services.content_service import get_topic_chunks
 from app.services.lesson_service import generate_lesson
 from app.services.question_pool_service import _generate_batch, question_fingerprint
+from app.services.llm_service import use_llm_provider
 
 CONTENT_VERSION = os.getenv("CONTENT_VERSION", "conaset-clase-b-2026-10")
 LESSON_PROMPT_VERSION = "lesson-v2"
@@ -330,6 +331,7 @@ async def _process_topic(
 
     counts = {"generated": 0, "rejected": 0, "verification_failures": 0}
     config = LESSON_CONFIGS[topic]
+    content_provider = os.getenv("CONTENT_LLM_PROVIDER", os.getenv("LLM_PROVIDER", "ollama"))
     if force:
         await exercises_collection.update_many(
             {"topic": topic, "language": "es", "release_id": release_id},
@@ -402,7 +404,14 @@ async def _process_topic(
             "verification_version": LESSON_VERIFICATION_VERSION,
             "status": "ready",
             "verified": True,
-            "generation_metadata": {"provider": os.getenv("LLM_PROVIDER", "ollama")},
+            "generation_metadata": {
+                "provider": content_provider,
+                "model": os.getenv("CONTENT_LLM_MODEL") or (
+                    os.getenv("GEMINI_MODEL")
+                    if content_provider == "gemini"
+                    else os.getenv("OLLAMA_MODEL", "")
+                ),
+            },
             "updated_at": utc_now_naive(),
         }
         await generated_lessons_collection.update_one(key, {"$set": document}, upsert=True)
@@ -735,16 +744,19 @@ async def _run_topic(
     start = time.monotonic()
     await _record_job_start(job_id, release_id, topic)
     try:
-        counts = await _process_topic(
-            topic,
-            release_id,
-            content_version,
-            force,
-            question_time_limit=question_time_limit,
-            question_minimum=question_minimum,
-            max_question_batches=max_question_batches,
-            question_timeout=question_timeout,
-        )
+        content_provider = os.getenv("CONTENT_LLM_PROVIDER", os.getenv("LLM_PROVIDER", "ollama"))
+        session_id = f"lemur-content-{release_id}-{topic}" if content_provider == "opencode_go" else None
+        with use_llm_provider(content_provider, session_id=session_id):
+            counts = await _process_topic(
+                topic,
+                release_id,
+                content_version,
+                force,
+                question_time_limit=question_time_limit,
+                question_minimum=question_minimum,
+                max_question_batches=max_question_batches,
+                question_timeout=question_timeout,
+            )
         await content_jobs_collection.update_one({"job_id": job_id}, {"$set": {
             **counts,
             "status": "ready",

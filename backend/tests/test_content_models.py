@@ -4,9 +4,17 @@ from datetime import datetime
 from pydantic import ValidationError
 
 from app.models import ContentJob, ContentRelease, Exercise, GeneratedLesson
+from app.services.content_service import TOPIC_SOURCE_MAP
 
 
 class ContentModelTests(unittest.TestCase):
+    def test_course_topic_source_mapping_matches_manual_section_titles(self):
+        self.assertEqual(TOPIC_SOURCE_MAP["C1.1"], "C1.1")
+        self.assertEqual(TOPIC_SOURCE_MAP["C1.2"], "C1")
+        self.assertEqual(TOPIC_SOURCE_MAP["C1.3"], "C1.2")
+        self.assertEqual(TOPIC_SOURCE_MAP.get("C2.1", "C2.1"), "C2.1")
+        self.assertEqual(TOPIC_SOURCE_MAP["C6.1"], "C6")
+
     def test_existing_exercise_documents_keep_legacy_defaults(self):
         exercise = Exercise.model_validate({"question": "Pregunta", "options": ["A", "B"]})
         self.assertEqual(exercise.status, "pending")

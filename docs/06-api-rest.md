@@ -174,7 +174,7 @@ La respuesta experimental contiene `topic`, `strategy`, `decisionReason`, `focus
 
 Asigna al estudiante autenticado tres preguntas verificadas del release publicado y crea una sesión de quiz. Este endpoint no llama al LLM ni genera preguntas. Las preguntas devueltas incluyen `exerciseId`, `question` y `options`; la clave correcta y la explicación no se envían antes de responder.
 
-Si no hay un release publicado o no contiene tres preguntas elegibles, responde `503`. Genera el pool con `content-worker`, completa la revisión manual requerida para `C1.2`, valida el release y publícalo antes de iniciar quizzes.
+Si no hay un release publicado o no contiene tres preguntas elegibles, responde `503`. Genera el pool con `content-worker`, completa la revisión manual requerida para el piloto `C1.1`, valida el release y publícalo antes de iniciar quizzes. Consulta [09 · Docker Worker de contenido pre-generado](./09-worker-contenido.md) para la secuencia completa.
 
 **Response `200 OK`:**
 

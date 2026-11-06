@@ -59,110 +59,114 @@ LESSON_SEQUENCE = [
 LESSON_CONFIGS = {
 
     # ========================================================
-    # C1.1 - LOS SINIESTROS DE TRÁNSITO
+    # C1.1-C1.3 - LOS SINIESTROS DE TRÁNSITO
     # ========================================================
 
     "C1.1": {
         "learning_goal": """
-        El estudiante debe comprender por qué los hechos viales
-        deben entenderse como siniestros de tránsito y reconocer
-        que muchas de sus causas y consecuencias pueden prevenirse.
+        El estudiante debe interpretar las estadísticas de siniestros
+        de tránsito en Chile y distinguir cantidad de siniestros,
+        fallecimientos y lesiones, conservando el alcance de cada cifra.
         """,
 
         "teaching_strategy": """
-        Explica primero la diferencia conceptual entre accidente
-        y siniestro.
+        Separa las cifras de siniestros, fallecimientos y lesiones de las
+        cifras de supervivencia peatonal según velocidad. Atribuye el
+        promedio de los últimos cinco años hasta 2022 y el conteo de
+        fallecimientos de Carabineros dentro de las 48 horas solo a las
+        estadísticas a las que el manual aplica explícitamente esas notas;
+        no extiendas esos calificadores a las cifras de velocidad.
 
-        Relaciona luego el comportamiento humano, los factores
-        de riesgo y la responsabilidad de quienes utilizan las vías.
-
-        Prioriza comprensión por sobre memorización.
+        Conserva el sujeto de cada estadística: no generalices cifras de personas conductoras fallecidas a todas las personas fallecidas.
+        Como el contexto reúne varias estadísticas, asocia cada cifra con su
+        afirmación concreta: las cifras generales del manual corresponden al
+        promedio de los últimos cinco años hasta 2022 y se basan en registros
+        de Carabineros que contabilizan fallecimientos dentro de 48 horas;
+        estos calificadores no se aplican automáticamente a las cifras de
+        supervivencia peatonal según velocidad.
+        No infieras relaciones entre distribuciones distintas ni relaciones
+        ambiguas de gráficos. No añadas porcentajes o cálculos; presenta las
+        cifras de velocidad y supervivencia únicamente con el alcance que
+        expresa el manual.
         """,
 
         "lesson_focus": [
-            "Concepto de siniestro de tránsito",
-            "Diferencia entre accidente y siniestro",
-            "Prevención",
-            "Responsabilidad de las personas usuarias",
-            "Consecuencias humanas y sociales",
-            "Factores de riesgo",
+            "Cantidad de siniestros",
+            "Personas fallecidas y lesionadas",
+            "Zonas urbanas e interurbanas",
+            "Velocidad y supervivencia de peatones",
+            "Factores de incidencia descritos",
+            "Alcance temporal y metodológico de las cifras",
         ],
 
         "quiz_focus": """
-        Evalúa si el estudiante comprende por qué los siniestros
-        no deben considerarse simplemente hechos azarosos y
-        reconoce la importancia de la prevención.
+        Evalúa la interpretación de los indicadores y sus alcances,
+        no la memorización descontextualizada de cifras. Toda pregunta
+        numérica debe conservar el periodo y la definición de fallecimiento
+        que acompañan a la cifra en el manual.
         """,
     },
 
 
     "C1.2": {
         "learning_goal": """
-        El estudiante debe interpretar las principales estadísticas
-        de siniestros de tránsito en Chile e identificar factores
-        asociados a su ocurrencia y gravedad.
+        El estudiante debe comprender por qué el manual utiliza
+        el concepto de siniestro de tránsito, reconocer que estos
+        hechos no son simplemente azarosos y explicar la responsabilidad
+        colectiva y la posibilidad de reducir sus consecuencias.
         """,
 
         "teaching_strategy": """
-        Presenta las cifras únicamente cuando estén claramente
-        respaldadas por el contexto y conserva su población exacta
-        (por ejemplo, personas conductoras fallecidas no equivale a
-        todas las personas fallecidas).
+        Explica la diferencia entre la definición de accidente y
+        el enfoque del manual sobre siniestros. Relaciona la evidencia
+        textual sobre conductas, condiciones y consecuencias, sin
+        convertir ejemplos del texto en reglas universales.
 
-        Explica qué significan las estadísticas en términos de
-        riesgo y prevención. Distingue la cantidad de siniestros,
-        fallecimientos y lesiones: sus distribuciones geográficas
-        pueden ser diferentes sin contradecirse.
-
-        No infieras relaciones que no estén expresadas en el manual
-        ni agregues ejemplos numéricos hipotéticos.
+        Prioriza comprensión y responsabilidad colectiva.
         """,
 
         "lesson_focus": [
-            "Cantidad de siniestros",
-            "Personas fallecidas y lesionadas",
-            "Zonas urbanas y no urbanas",
-            "Velocidad y gravedad",
-            "Falla humana",
-            "Factores de incidencia",
+            "Concepto de siniestro de tránsito",
+            "Diferencia entre accidente y siniestro",
+            "Factores y condiciones asociados",
+            "Responsabilidad colectiva",
+            "Consecuencias humanas y sociales",
+            "Posibilidad de reducir consecuencias",
         ],
 
         "quiz_focus": """
-        Evalúa comprensión de las tendencias y relaciones
-        explícitamente descritas por el manual.
-
-        Evita exigir la memorización de cifras aisladas.
+        Evalúa la distinción entre accidente y siniestro, el carácter
+        no azaroso descrito por el manual y la responsabilidad colectiva.
         """,
     },
 
 
     "C1.3": {
         "learning_goal": """
-        El estudiante debe comprender el enfoque de Sistema Seguro
-        y sus principios fundamentales para prevenir muertes y
-        lesiones graves en el tránsito.
+        El estudiante debe comprender el enfoque de Sistema Seguro,
+        su principio ético y la responsabilidad compartida de los
+        componentes del sistema para evitar muertes y lesiones graves.
         """,
 
         "teaching_strategy": """
-        Explica el cambio de enfoque desde intentar evitar todo
-        error humano hacia diseñar un sistema capaz de proteger
-        a las personas incluso cuando cometen errores.
-
-        Relaciona los distintos componentes del sistema.
+        Explica el cambio desde intentar corregir errores individuales
+        hacia diseñar y fortalecer un sistema que apoye a las personas
+        y limite las consecuencias de los errores. Usa únicamente los
+        componentes y principios expresados en el contexto.
         """,
 
         "lesson_focus": [
-            "Sistema Seguro",
-            "Visión Cero",
-            "Error humano",
-            "Tolerancia del cuerpo humano",
+            "Sistema Seguro y Visión Cero",
+            "Error humano y riesgo inherente",
             "Responsabilidad compartida",
-            "Fortalecimiento de los componentes del sistema",
+            "Componentes del sistema",
+            "Límites de tolerancia del cuerpo humano",
         ],
 
         "quiz_focus": """
-        Evalúa comprensión de los principios del Sistema Seguro
-        y de la responsabilidad compartida.
+        Evalúa comprensión del enfoque de Sistema Seguro, la
+        responsabilidad compartida y la protección que aportan
+        componentes fortalecidos.
         """,
     },
 

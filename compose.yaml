@@ -8,8 +8,9 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    env_file:
-      - .env
+    environment:
+      VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     depends_on:
       - backend
 
@@ -22,19 +23,26 @@ services:
       - ./backend:/app
     env_file:
       - .env
+    environment:
+      OPENCODE_API_KEY: ""
   content-worker:
     build:
       context: ./backend
     volumes:
       - ./backend:/app
-    env_file:
-      - .env
     environment:
+      MONGODB_URI: ${MONGODB_URI:?Define MONGODB_URI en .env}
+      MONGODB_DATABASE: ${MONGODB_DATABASE:?Define MONGODB_DATABASE en .env}
+      LLM_REQUEST_TIMEOUT_SECONDS: ${LLM_REQUEST_TIMEOUT_SECONDS:-300}
       CONTENT_VERSION: ${CONTENT_VERSION:-conaset-clase-b-2026-10}
       CONTENT_WORKER_MINIMUM_QUESTIONS: ${CONTENT_WORKER_MINIMUM_QUESTIONS:-15}
       CONTENT_WORKER_QUESTION_TIME_LIMIT_SECONDS: ${CONTENT_WORKER_QUESTION_TIME_LIMIT_SECONDS:-1800}
       CONTENT_WORKER_MAX_QUESTION_BATCHES: ${CONTENT_WORKER_MAX_QUESTION_BATCHES:-50}
       CONTENT_WORKER_QUESTION_TIMEOUT_SECONDS: ${CONTENT_WORKER_QUESTION_TIMEOUT_SECONDS:-150}
+      CONTENT_LLM_PROVIDER: ${CONTENT_LLM_PROVIDER:-opencode_go}
+      CONTENT_LLM_MODEL: ${CONTENT_LLM_MODEL:-gpt-6-luna}
+      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
+      OPENCODE_BASE_URL: ${OPENCODE_BASE_URL:-https://opencode.ai/inference/go}
     command: ["python", "-m", "app.jobs.generate_content"]
     profiles:
       - jobs

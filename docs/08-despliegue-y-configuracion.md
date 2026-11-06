@@ -27,6 +27,7 @@ flowchart TB
     BE -->|"TLS (SRV)"| Atlas[("MongoDB Atlas")]
     BE -->|"HTTP"| Ollama["Ollama (host o red)"]
     BE -->|"HTTPS"| Gemini["Google Gemini API"]
+    CW -->|"HTTPS"| OpenCode["OpenCode Go (solo worker)"]
     BE -->|"HTTPS"| GoogleKeys["Claves públicas Google"]
 ```
 
@@ -67,7 +68,7 @@ Ambos contenedores montan el código fuente como volumen → **hot-reload** al e
 
 ## 8.3 Variables de entorno
 
-Todas se cargan desde el archivo `.env` en la raíz (compartido por ambos servicios vía `env_file`). **Nunca commitear** — está en `.gitignore`.
+Compose lee el archivo `.env` de la raíz para interpolación; el backend recibe su configuración por `env_file`, el frontend solo recibe variables `VITE_*` y el worker recibe explícitamente las variables que necesita. **Nunca commitear** — está en `.gitignore`.
 
 ### Backend
 
@@ -76,11 +77,15 @@ Todas se cargan desde el archivo `.env` en la raíz (compartido por ambos servic
 | `MONGODB_URI` | ✅ | Cadena de conexión Atlas (`mongodb+srv://…`). |
 | `MONGODB_DATABASE` | ✅ | Nombre de la base. |
 | `GOOGLE_CLIENT_ID` | ✅ | Audiencia esperada al verificar `id_token`. Debe coincidir con el del frontend. |
-| `LLM_PROVIDER` | ➖ | `ollama` (default) \| `gemini`. |
-| `OLLAMA_URL` | ✅ (si ollama) | Endpoint del servicio Ollama. |
-| `OLLAMA_MODEL` | ✅ (si ollama) | Modelo local (p. ej. `qwen2.5:7b`). |
-| `GEMINI_API_KEY` | ✅ (si gemini) | Clave de Google AI. |
-| `GEMINI_MODEL` | ✅ (si gemini) | Modelo (p. ej. `gemini-2.5-flash`). |
+| `LLM_PROVIDER` | ➖ | Proveedor de backend/chat: `ollama` (default) \| `gemini`. |
+| `OLLAMA_URL` | ➖ | Endpoint del servicio Ollama (requerido si se usa Ollama). |
+| `OLLAMA_MODEL` | ➖ | Modelo local (requerido si se usa Ollama; p. ej. `qwen2.5:7b`). |
+| `GEMINI_API_KEY` | ➖ | Clave de Google AI (requerida si `LLM_PROVIDER=gemini`). |
+| `GEMINI_MODEL` | ➖ | Modelo de Gemini (requerido si `LLM_PROVIDER=gemini`). |
+| `OPENCODE_API_KEY` | ➖ | Clave de OpenCode Go; Compose la pasa únicamente al servicio `content-worker` (el backend la sobrescribe vacía). No compartir ni guardar en el repositorio. |
+| `CONTENT_LLM_PROVIDER` | ➖ | Proveedor exclusivo del worker; default de Compose: `opencode_go`. Alternativas: `ollama`, `gemini`. |
+| `CONTENT_LLM_MODEL` | ➖ | ID del modelo para el worker; default: `gpt-6-luna`. |
+| `OPENCODE_BASE_URL` | ➖ | Gateway Go; default: `https://opencode.ai/inference/go`. |
 
 ### Frontend (expuestas al bundle — no poner secretos)
 
@@ -98,7 +103,9 @@ Definidas en `.env` pero **aún sin consumidores en el código** (preparadas par
 | `JWT_SECRET_KEY` / `JWT_ALGORITHM` / `JWT_EXPIRE_MINUTES` | Firma de tokens de sesión propios |
 | `GOOGLE_CLIENT_SECRET` | Flujo OAuth server-side (si se migra de popup a redirect) |
 
-> ⚠️ **Nota de lectura del código:** `os.environ["X"]` falla en arranque si falta (fail-fast deseable), pero como `llm_service.py` lee **todas** las variables de Ollama y Gemini al importarse, hoy se exige definir ambas aunque solo uses un proveedor.
+> El worker acepta proveedores independientes del backend: por defecto Compose usa OpenCode Go para generar contenido (`CONTENT_LLM_PROVIDER=opencode_go`), mientras la API conserva `LLM_PROVIDER` (Ollama por defecto). Las credenciales de Ollama y Gemini son opcionales al importar el servicio y se validan al invocar el proveedor correspondiente.
+>
+> **OpenCode Go** está orientado principalmente a agentes de programación y puede aplicar controles de uso. Esta integración es experimental para generación educativa; confirma que el uso y las condiciones de tu plan lo permiten antes de producir catálogos grandes. La clave solo se inyecta en `content-worker`, no en frontend ni backend. No la pongas en el chat, código, capturas ni commits.
 
 ---
 
@@ -144,14 +151,31 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 El worker comparte imagen, variables y conexión MongoDB con FastAPI, pero se invoca explícitamente y no se levanta durante `docker compose up`:
 
-```bash
-docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.2
+```powershell
+# Define OPENCODE_API_KEY en el .env local (no la pegues en el chat ni la guardes en Git).
+# Primero genera un único tema con un release nuevo y un pool experimental pequeño:
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1 --question-minimum 5
+
+# Para la meta predeterminada de 15 preguntas verificadas:
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1
+
+# Cuando revises calidad y consumo, puedes generar todos los temas configurados:
 docker compose run --rm content-worker python -m app.jobs.generate_content --all
-docker compose run --rm content-worker python -m app.jobs.generate_content --failed
-docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.2 --force
 ```
 
-Cada ejecución crea o actualiza `content_jobs` y almacena estado, error, duración y conteos. Los releases comienzan en `building` y alcanzan `ready` al completar los temas esperados. El worker deja lecciones y preguntas verificadas en `ready`; la validación y publicación se ejecutan aparte mediante `manage_content.py`. El pool apunta por defecto a 15 preguntas verificadas por tema (`CONTENT_WORKER_MINIMUM_QUESTIONS`) y puede ejecutarse con límites de tiempo, tiempo por lote y cantidad máxima de lotes; un reintento con el mismo release conserva las preguntas válidas y completa el pool. Consulta [09 · Docker Worker de contenido pre-generado](./09-worker-contenido.md) para opciones y diagrama del flujo.
+El worker usa OpenCode Go con `gpt-6-luna` por defecto. Para seleccionar otro modelo disponible en Go, ajusta `CONTENT_LLM_MODEL` localmente. La configuración `CONTENT_LLM_PROVIDER` puede cambiarse a `ollama` o `gemini` para el worker; no modifica el proveedor de chat/API. Usa un release nuevo durante pruebas de modelos para no reutilizar contenido anterior.
+
+```powershell
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.2
+docker compose run --rm content-worker python -m app.jobs.generate_content --failed
+# Reanudar el mismo release sin perder preguntas verificadas:
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.1 --release-id release-XXXXXXXXXXXX --question-minimum 5
+
+# Regenerar destructivamente un tema dentro de un release (supersede preguntas previas):
+docker compose run --rm content-worker python -m app.jobs.generate_content --topic C1.2 --release-id release-XXXXXXXXXXXX --force
+```
+
+Cada ejecución crea o actualiza `content_jobs` y almacena estado, error, duración y conteos. Los releases comienzan en `building` y alcanzan `ready` al completar los temas esperados. El worker deja lecciones y preguntas verificadas en `ready`; la validación y publicación se ejecutan aparte mediante `manage_content.py`. El pool apunta por defecto a 15 preguntas verificadas por tema (`CONTENT_WORKER_MINIMUM_QUESTIONS`) y puede ejecutarse con límites de tiempo, tiempo por lote y cantidad máxima de lotes; un reintento con el mismo release conserva las preguntas válidas y completa el pool. Para el piloto `C1.1`, ejecuta `verify-existing` y revisa/aprueba manualmente las preguntas antes de validar y publicar; los comandos completos están en [09 · Docker Worker de contenido pre-generado](./09-worker-contenido.md).
 
 ### Ingesta / re-ingesta del manual
 

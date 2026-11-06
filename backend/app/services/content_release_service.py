@@ -165,8 +165,8 @@ async def publish_release(release_id: str, minimum_questions: int) -> list[str]:
     current_topics = current.get("topics", []) if current else []
     merged_topics = merge_published_topics(current_topics, topics, release_id)
 
-    async with await content_releases_collection.database.client.start_session() as session:
-        async with session.start_transaction():
+    async with content_releases_collection.database.client.start_session() as session:
+        async with await session.start_transaction():
             for topic in topics:
                 await generated_lessons_collection.update_many({
                     "topic": topic, "language": "es", "release_id": release_id,

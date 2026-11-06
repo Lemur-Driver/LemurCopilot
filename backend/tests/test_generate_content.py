@@ -21,7 +21,10 @@ class GenerateContentTests(unittest.TestCase):
         self.assertIn("métricas distintas", BASE_LESSON_PROMPT)
         self.assertIn("personas conductoras fallecidas", config["teaching_strategy"])
         self.assertIn("distribuciones", config["teaching_strategy"])
-        self.assertIn("ejemplos numéricos hipotéticos", config["teaching_strategy"])
+        self.assertIn("cifras de velocidad", config["teaching_strategy"])
+        self.assertIn("no extiendas esos calificadores", config["teaching_strategy"])
+        self.assertIn("no se aplican automáticamente", config["teaching_strategy"])
+        self.assertNotIn("ejemplos numéricos hipotéticos", config["teaching_strategy"])
 
     def test_lesson_verifier_distinguishes_indicators_and_scope_errors(self):
         async def verify_with_response(response):
